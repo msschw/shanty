@@ -21,4 +21,7 @@ SUBDIRS = \
     m3u_roundtrip \
     m3u_resolve \
     playback_queue \
-    equalizer_profile
+    playback_controller \
+    equalizer_profile \
+    effect_chain \
+    autoeq

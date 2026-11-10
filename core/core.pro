@@ -10,6 +10,11 @@ QMAKE_CXXFLAGS += -Wall -Wextra
 
 TARGET = shanty-core
 
+# Headers use core-root-relative quoted includes (e.g.
+# "playback/PlaybackQueue.h" from services/, "core/ports/..." style is NOT
+# used here — core stays self-contained relative to $$PWD).
+INCLUDEPATH += $$PWD
+
 VPATH = $$PWD
 
 HEADERS += \
@@ -22,15 +27,19 @@ HEADERS += \
     domain/M3uParseResult.h \
     domain/PathResolver.h \
     domain/EqualizerProfile.h \
+    domain/AutoEqParseResult.h \
     playback/PlaybackQueue.h \
+    playback/PlaybackController.h \
     ports/IPlaylistCodec.h \
     ports/ILibraryScanner.h \
     ports/ILibraryStore.h \
     ports/ISettingsStore.h \
     ports/IAudioEngine.h \
     ports/IEffectChain.h \
+    ports/IAutoEqReader.h \
     services/LibraryService.h \
-    services/SettingsService.h
+    services/SettingsService.h \
+    services/EffectChainService.h
 
 SOURCES += \
     domain/AudioFormat.cpp \
@@ -40,5 +49,7 @@ SOURCES += \
     domain/PathResolver.cpp \
     domain/EqualizerProfile.cpp \
     playback/PlaybackQueue.cpp \
+    playback/PlaybackController.cpp \
     services/LibraryService.cpp \
-    services/SettingsService.cpp
+    services/SettingsService.cpp \
+    services/EffectChainService.cpp

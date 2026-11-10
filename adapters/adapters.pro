@@ -29,9 +29,16 @@ VPATH = $$PWD
 HEADERS += \
     m3u/M3uPlaylistCodec.h \
     filesystem/FilesystemScanner.h \
-    store/FileIndexStore.h
+    store/FileIndexStore.h \
+    autoeq/AutoEqReader.h
 
 SOURCES += \
     m3u/M3uPlaylistCodec.cpp \
     filesystem/FilesystemScanner.cpp \
-    store/FileIndexStore.cpp
+    store/FileIndexStore.cpp \
+    autoeq/AutoEqReader.cpp
+
+# SH-503: adapters/autoeq/AutoEqReader is deliberately Qt-free (plain C++
+# parser per the SH-503 suite contract), so no additional qt entries are
+# needed here — the ones above (QT += core / CONFIG += qt from SH-203/
+# SH-204 Phase B) stay as-is.

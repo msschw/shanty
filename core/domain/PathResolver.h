@@ -17,8 +17,6 @@ namespace shanty {
 
 class Playlist;
 
-class Playlist;
-
 /// Resolves every entry of `playlist` against `baseDir` and returns the
 /// resolved playlist (never mutates the argument).
 Playlist resolveEntryPaths(const Playlist& playlist, const std::string& baseDir);

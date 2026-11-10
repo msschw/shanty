@@ -55,4 +55,15 @@ EqualizerProfile EqualizerProfile::make(
     return profile;
 }
 
+// SH-503 Phase B (additive): origin-tracking construction; validation
+// rules are identical to make().
+EqualizerProfile EqualizerProfile::makeWithSource(
+    const std::string& name,
+    const std::vector<double>& gainsDb,
+    ProfileSource source) {
+    EqualizerProfile profile = make(name, gainsDb);
+    profile.source_ = source;
+    return profile;
+}
+
 }  // namespace shanty
