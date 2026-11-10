@@ -1,39 +1,22 @@
-# NOTICE:
-#
-# Application name defined in TARGET has a corresponding QML filename.
-# If name defined in TARGET is changed, the following needs to be done
-# to match new name:
-#   - corresponding QML filename must be changed
-#   - desktop icon filename must be changed
-#   - desktop filename must be changed
-#   - icon definition filename in desktop file must be changed
-#   - translation filenames have to be changed
+# SH-101: Top-level project restructured as subdirs (ISSUES.md §1.3).
+# app/ keeps the Sailfish 'sailfishapp' template configuration. On a plain
+# host build (no Sailfish SDK), pass `onHost` (see scripts/run-tests.sh) to
+# skip the app and build core + adapters + tests only.
 
-# The name of your application
-TARGET = shanty
+TEMPLATE = subdirs
 
-CONFIG += sailfishapp
+CONFIG += ordered
 
-SOURCES += src/shanty.cpp
+SUBDIRS += core adapters
 
-DISTFILES += qml/shanty.qml \
-    qml/cover/CoverPage.qml \
-    qml/pages/FirstPage.qml \
-    qml/pages/SecondPage.qml \
-    rpm/shanty.changes.in \
-    rpm/shanty.changes.run.in \
-    rpm/shanty.spec \
-    translations/*.ts \
-    shanty.desktop
+adapters.depends = core
 
-SAILFISHAPP_ICONS = 86x86 108x108 128x128 172x172
+onHost {
+    SUBDIRS += tests
+    tests.depends = adapters
+} else {
+    SUBDIRS += app
+    app.depends = adapters
+}
 
-# to disable building translations every time, comment out the
-# following CONFIG line
-CONFIG += sailfishapp_i18n
-
-# German translation is enabled as an example. If you aren't
-# planning to localize your app, remember to comment out the
-# following TRANSLATIONS line. And also do not forget to
-# modify the localized app name in the the .desktop file.
-TRANSLATIONS += translations/shanty-de.ts
+DISTFILES += PROJECT.md ISSUES.md
