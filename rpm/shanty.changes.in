@@ -12,7 +12,9 @@
 # * date Author's Name <author's email> version-release
 # - Summary of changes
 
-* Sun Apr 13 2014 Jack Tar <jack.tar@example.com> 0.0.1-1
-- Scrubbed the deck
-- Hoisted the sails
+* Tue Nov 10 2026 Shanty contributors <shanty@localhost> 0.1-1
+- Initial packaging of Shanty 0.1: lean local audio player with
+  user-managed library (whitelist/blacklist), M3U import/edit/export
+  and equalizer (AutoEq profile import) for Sailfish OS.
+- Licensed under GPL-3.0-or-later (see LICENSE).
 

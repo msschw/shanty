@@ -1,1 +1,4 @@
 build-*/
+
+# Qt Creator user files
+*.pro.user*

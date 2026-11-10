@@ -33,3 +33,8 @@ SUBDIRS = \
 
 # SH-605: settings view-model suite (appended by its wave agent).
 SUBDIRS += settings_vm
+
+# SH-702: packaging & release lint suite (spec template keys, %changelog,
+# %files install-set coverage, icons, DISTFILES/translations existence,
+# soft .ts-vs-QML parity).
+SUBDIRS += packaging

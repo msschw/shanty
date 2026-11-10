@@ -1,12 +1,23 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SH-702 Phase B: finalised Sailfish OS packaging for Shanty. Summary,
+# description, runtime Requires and %changelog aligned with PROJECT.md
+# (lean local audio player); Name/Version kept as shipped by the
+# template. The spec is built in the Sailfish SDK (mb2/sfdk), not on the
+# host — see docs/app-size-audit.md for the accounting procedure.
+
 Name:       shanty
 
-Summary:    A configurable music player
+Summary:    Lean local audio player (MP3, OGG, FLAC) for Sailfish OS
 Version:    0.1
 Release:    1
 License:    GPL-3.0-or-later
 URL:        http://example.org/
 Source0:    %{name}-%{version}.tar.bz2
 Requires:   sailfishsilica-qt5 >= 0.10.9
+Requires:   pkgconfig(sailfishapp) >= 1.0.2
+Requires:   pkgconfig(Qt5Core)
+Requires:   pkgconfig(Qt5Qml)
+Requires:   pkgconfig(Qt5Quick)
 BuildRequires:  pkgconfig(sailfishapp) >= 1.0.2
 BuildRequires:  pkgconfig(Qt5Core)
 BuildRequires:  pkgconfig(Qt5Qml)
@@ -14,7 +25,20 @@ BuildRequires:  pkgconfig(Qt5Quick)
 BuildRequires:  desktop-file-utils
 
 %description
-A configurable music player
+Shanty is a lean local audio player for Sailfish OS. It plays MP3, OGG
+(Vorbis) and FLAC files stored on the device — no streaming, no network
+features. Library scopes are user-managed: folders can be added and
+removed, and individual folders or files whitelisted (included) or
+blacklisted (excluded). M3U/M3U8 playlists can be imported, edited
+(reorder, add, remove entries) and exported back to disk.
+
+The UI provides the three dedicated views of the charter: Library,
+Settings (equalizer profiles with AutoEq import) and Player (transport
+controls for the current playlist with play/pause, next and previous).
+
+Deliberately minimal dependencies (Qt core/QML/Quick, sailfishapp,
+Sailfish Silica) to keep the footprint small. Free software under
+GPL-3.0-or-later; see the LICENSE file shipped with the sources.
 
 
 %prep
@@ -22,7 +46,7 @@ A configurable music player
 
 %build
 
-%qmake5 
+%qmake5
 
 %make_build
 
@@ -39,3 +63,14 @@ desktop-file-install --delete-original         --dir %{buildroot}%{_datadir}/app
 %{_datadir}/%{name}
 %{_datadir}/applications/%{name}.desktop
 %{_datadir}/icons/hicolor/*/apps/%{name}.png
+
+# SH-702: ship the GPL licence text (package documentation).
+%doc LICENSE
+
+
+%changelog
+* Tue Nov 10 2026 Shanty contributors <shanty@localhost> 0.1-1
+- Initial packaging of Shanty 0.1: lean local audio player with
+  user-managed library (whitelist/blacklist), M3U import/edit/export
+  and equalizer (AutoEq profile import) for Sailfish OS.
+- Licensed under GPL-3.0-or-later (see LICENSE).
