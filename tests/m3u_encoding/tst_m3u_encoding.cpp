@@ -13,8 +13,9 @@ using shanty::PlaylistEntry;
 
 namespace {
 
-/// "#EXTINF:1, Müde" encoded in Latin-1 vs UTF-8.
-const char kExtinfTitleLatin1[] = "#EXTM3U\n#EXTINF:1,\xF6Mde\n/song.mp3\n";
+/// "#EXTINF:1, Möde" encoded in Latin-1 (escape split to prevent GCC
+/// maximal-munch from folding \xF6 and the following hex digits).
+const char kExtinfTitleLatin1[] = "#EXTM3U\n#EXTINF:1,M" "\xF6" "de\n/song.mp3\n";
 
 QString firstTitle(const ParseResult& result) {
     if (result.playlist.count() == 0) return QString();
@@ -36,7 +37,7 @@ private slots:
 void TestM3uEncoding::m3u8DecodesAsUtf8() {
     // "#EXTINF:1, Löse" in UTF-8: L\xC3\xB6se
     const std::string data =
-        std::string("#EXTM3U\n#EXTINF:1,") + "\xC3\xB6" + "se\n/song.mp3\n";
+        std::string("#EXTM3U\n#EXTINF:1,L") + "\xC3\xB6" + "se\n/song.mp3\n";
     M3uPlaylistCodec codec;
     const ParseResult result = codec.parse(data, "/x/playlist.m3u8");
     QVERIFY(result.ok());
@@ -47,7 +48,7 @@ void TestM3uEncoding::m3uExtInfFallsBackToLatin1() {
     M3uPlaylistCodec codec;
     const ParseResult result = codec.parse(kExtinfTitleLatin1, "/x/playlist.m3u");
     QVERIFY(result.ok());
-    QCOMPARE(firstTitle(result), QString::fromLatin1("M\xF6de"));
+    QCOMPARE(firstTitle(result), QString::fromLatin1("M" "\xF6" "de"));
 }
 
 void TestM3uEncoding::utf8BomInM3uIsSniffed() {
@@ -62,13 +63,13 @@ void TestM3uEncoding::utf8BomInM3uIsSniffed() {
 }
 
 void TestM3uEncoding::reservedC1BytesInM3uAreDecodable() {
-    // The extension matrix: .m3u payload without BOM containing high byte
-    // in metadata decodes as Latin-1 (81 → 'ü').
-    const std::string data = "#EXTM3U\n#EXTINF:1,T\xFCr\n/song.mp3\n";
+    // The extension matrix: .m3u payload without BOM containing a high
+    // byte in metadata decodes as Latin-1 (0xFC → 'ü').
+    const std::string data = "#EXTM3U\n#EXTINF:1,T" "\xFC" "r\n/song.mp3\n";
     M3uPlaylistCodec codec;
     const ParseResult result = codec.parse(data, "/x/playlist.m3u");
     QVERIFY(result.ok());
-    QCOMPARE(firstTitle(result), QString::fromStdString(std::string("T\xFCr")));
+    QCOMPARE(firstTitle(result), QString::fromLatin1("T" "\xFC" "r"));
 }
 
 QTEST_MAIN(TestM3uEncoding)

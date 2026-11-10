@@ -27,11 +27,17 @@ public:
 
     const std::string& name() const { return name_; }
     const std::vector<double>& gains() const { return gains_; }
-    bool isValid() const { return false; }
+    // SH-501 Phase B: the inline stub body was hardcoded to `false`; the
+    // signature is unchanged, only the (fixed-header) body now delegates to
+    // the validity flag set by the factories implemented in the .cpp.
+    bool isValid() const { return valid_; }
 
 private:
     std::string name_;
     std::vector<double> gains_;
+    /// Cached validation result, set by flat()/make(). Default-constructed
+    /// (and zero-band) profiles are invalid.
+    bool valid_ = false;
 };
 
 }  // namespace shanty

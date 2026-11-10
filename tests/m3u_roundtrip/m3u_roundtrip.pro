@@ -17,5 +17,8 @@ INCLUDEPATH += $$PWD/../..
 INCLUDEPATH += $$PWD
 
 LIBS += -L$$OUT_PWD/../../adapters -L$$OUT_PWD/../../core -lshanty-adapters -lshanty-core
+# SH-101: track the static libs so suite binaries always relink (agents
+# reported stale binaries after core/adapters changes).
+PRE_TARGETDEPS += $$OUT_PWD/../../core/libshanty-core.a
 
 SOURCES += tst_m3u_roundtrip.cpp
