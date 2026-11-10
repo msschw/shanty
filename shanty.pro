@@ -7,16 +7,17 @@ TEMPLATE = subdirs
 
 CONFIG += ordered
 
-SUBDIRS += core adapters
+SUBDIRS += core adapters presentation
 
 adapters.depends = core
+presentation.depends = core
 
 onHost {
     SUBDIRS += tests
-    tests.depends = adapters
+    tests.depends = presentation
 } else {
     SUBDIRS += app
-    app.depends = adapters
+    app.depends = presentation
 }
 
 DISTFILES += PROJECT.md ISSUES.md

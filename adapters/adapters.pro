@@ -42,3 +42,30 @@ SOURCES += \
 # parser per the SH-503 suite contract), so no additional qt entries are
 # needed here — the ones above (QT += core / CONFIG += qt from SH-203/
 # SH-204 Phase B) stay as-is.
+
+# SH-402: AudioEngineAdapter (new module adapters/engine). Host build stays
+# QtCore-only (documented stub variant, SH-D402-2); the Sailfish QtMultimedia
+# backend is enabled ONLY where the multimedia module exists (Sailfish SDK/
+# device). Two guards, recorded as decisions:
+#   - `onHost` keeps the device backend off the host build entirely (a plain
+#     host Qt may still carry a runtime multimedia module; the adapter's
+#     device variant must follow the shanty.pro app/ split: SDK-only);
+#   - `qtHaveModule(multimedia)` trips inside any non-host target.
+# Both flags are kept in the SDK/device build: CONFIG += HAVE_QTMULTIMEDIA
+# marks the build config (as requested for this ticket), and
+# DEFINES += HAVE_QTMULTIMEDIA is what actually makes the #ifdef in the
+# sources resolve in the toolchain.
+!onHost {
+    qtHaveModule(multimedia) {
+        QT += multimedia
+        CONFIG += HAVE_QTMULTIMEDIA
+        DEFINES += HAVE_QTMULTIMEDIA
+    }
+}
+
+HEADERS += \
+    engine/AudioEngineAdapter.h
+
+SOURCES += \
+    engine/AudioEngineAdapter.cpp
+

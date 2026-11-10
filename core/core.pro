@@ -39,7 +39,8 @@ HEADERS += \
     ports/IAutoEqReader.h \
     services/LibraryService.h \
     services/SettingsService.h \
-    services/EffectChainService.h
+    services/EffectChainService.h \
+    services/PlaylistService.h
 
 SOURCES += \
     domain/AudioFormat.cpp \
@@ -52,4 +53,5 @@ SOURCES += \
     playback/PlaybackController.cpp \
     services/LibraryService.cpp \
     services/SettingsService.cpp \
-    services/EffectChainService.cpp
+    services/EffectChainService.cpp \
+    services/PlaylistService.cpp

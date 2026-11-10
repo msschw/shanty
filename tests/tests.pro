@@ -24,4 +24,12 @@ SUBDIRS = \
     playback_controller \
     equalizer_profile \
     effect_chain \
-    autoeq
+    autoeq \
+    playlist_vm \
+    player_vm \
+    library_vm \
+    navigation \
+    engine_adapter
+
+# SH-605: settings view-model suite (appended by its wave agent).
+SUBDIRS += settings_vm
