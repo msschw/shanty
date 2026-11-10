@@ -3,7 +3,7 @@ Name:       shanty
 Summary:    A configurable music player
 Version:    0.1
 Release:    1
-License:    LICENSE
+License:    GPL-3.0-or-later
 URL:        http://example.org/
 Source0:    %{name}-%{version}.tar.bz2
 Requires:   sailfishsilica-qt5 >= 0.10.9

@@ -1,6 +1,7 @@
 // SH-401: playback queue logic — pure domain (design D2). The audio engine
 // adapter only ever receives "play this entry now"; ordering decisions live
 // here.
+// Copyright 2026 Shanty contributors. SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Documented behaviour (tested in tst_playback_queue):
 //   - setCurrent/preparation selects the start index (clamped),

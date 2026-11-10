@@ -1,3 +1,5 @@
+// Shanty — Sailfish OS local audio player.
+// Copyright 2026 Shanty contributors. SPDX-License-Identifier: GPL-3.0-or-later
 #ifdef QT_QML_DEBUG
 #include <QtQuick>
 #endif

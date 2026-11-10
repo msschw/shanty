@@ -5,9 +5,19 @@
 TEMPLATE = lib
 CONFIG += staticlib
 CONFIG -= qt
+# SH-203 Phase B: FilesystemScanner enumerates via QtCore (QDir/QDirIterator);
+# re-enable Qt support here (stub-era rule above said Phase B may freely use
+# Qt/QtCore) so qmake supplies the QtCore include paths.
+QT += core
+CONFIG += qt
 
 CONFIG += c++14 strict
 QMAKE_CXXFLAGS += -Wall -Wextra
+
+# SH-204 Phase B: FileIndexStore persists through QtCore (QFile/QSaveFile/
+# QStandardPaths). Same order as above — overriding the stub-level "-qt".
+CONFIG += qt
+QT += core
 
 TARGET = shanty-adapters
 

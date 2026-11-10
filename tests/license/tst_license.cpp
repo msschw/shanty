@@ -37,7 +37,7 @@ private slots:
 };
 
 void TestLicense::allCppAndHeaderFilesCarrySpdxHeader() {
-    const QSet<QString> excluded = {QStringLiteral("build-host")};
+    const QSet<QString> rootBuildTrees = {QStringLiteral("build-host")};
     QDirIterator it(QStringLiteral(SHANTY_ROOT),
                     QStringList{QStringLiteral("*.cpp"), QStringLiteral("*.h")},
                     QDir::Files,
@@ -46,9 +46,15 @@ void TestLicense::allCppAndHeaderFilesCarrySpdxHeader() {
     int checked = 0;
     while (it.hasNext()) {
         const QString path = it.next();
-        QFileInfo info(path);
-        if (excluded.contains(info.dir().dirName())) continue;
-        const QString relative = QDir(QStringLiteral(SHANTY_ROOT)).relativeFilePath(path);
+        // Skip generated build trees: everything under a root-level
+        // build-* directory is produced, not authored.
+        const QString relative =
+            QDir(QStringLiteral(SHANTY_ROOT)).relativeFilePath(path);
+        const QString top = relative.section(QChar::fromLatin1('/'), 0, 0);
+        if (top.startsWith(QStringLiteral("build-")) ||
+            rootBuildTrees.contains(relative)) {
+            continue;
+        }
         QVERIFY2(hasSpdxHeader(path),
                  qPrintable(QStringLiteral("missing SPDX GPL-3.0 header: %1").arg(relative)));
         ++checked;
