@@ -2,3 +2,14 @@ build-*/
 
 # Qt Creator user files
 *.pro.user*
+
+# sfdk performs in-tree RPM builds on the host checkout (build engine
+# shares the project dir); ignore the generated build artefacts.
+*.o
+*.a
+*.qm
+/app/shanty
+Makefile*
+
+# sfdk RPM output directory
+/RPMS/

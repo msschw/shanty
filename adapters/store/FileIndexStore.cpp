@@ -68,7 +68,11 @@ std::set<std::string>& sessionWrittenPaths() {
 }
 
 std::string defaultStorePath() {
-    const QString overridePath = qEnvironmentVariable("SHANTY_LIBRARY_STORE");
+    // Qt 5.6 compat (device target): qEnvironmentVariable() is Qt>=5.10, the
+    // qEnvironmentVariableIsSet()/qgetenv() pair is available since 5.5.
+    const QString overridePath = qEnvironmentVariableIsSet("SHANTY_LIBRARY_STORE")
+        ? QString::fromLocal8Bit(qgetenv("SHANTY_LIBRARY_STORE"))
+        : QString();
     if (!overridePath.isEmpty()) {
         return overridePath.toStdString();
     }

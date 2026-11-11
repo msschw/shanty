@@ -49,7 +49,7 @@ never part of `INSTALLS`):
 | `adapters` (M3U codec, scanner, store, engine adapter) | framework-bound thin layers | yes (static lib `libshanty-adapters.a`) |
 | `presentation` (view-models) | pure-C++ QObject facades | yes (static lib `libshanty-viewmodels.a`) |
 | `app` (SailfishApp main) | entry point glue | yes (the `shanty` binary) |
-| `qml/`, `icons/`, `translations/`, `shanty.desktop` | data + metadata | shipped under `%{_datadir}` |
+| `app/qml/`, `app/icons/`, `translations/`, `app/shanty.desktop` | data + metadata | shipped under `%{_datadir}` |
 | `tests/` | QUnit-test binaries per suite | **no** |
 
 ## 3. Host evidence (measured, CONFIG+=onHost, Qt 5.15.19, gcc -O2)

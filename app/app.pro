@@ -1,4 +1,4 @@
-// SH-101: the app component keeps the Sailfish 'sailfishapp' template.
+# SH-101: the app component keeps the Sailfish 'sailfishapp' template.
 # NOTICE:
 #
 # Application name defined in TARGET has a corresponding QML filename.
@@ -18,17 +18,24 @@ DEFINES += BUILD_APP
 
 SOURCES += shanty.cpp
 
-DISTFILES += ../qml/shanty.qml \
-    ../qml/cover/CoverPage.qml \
-    ../qml/pages/FirstPage.qml \
-    ../qml/pages/SecondPage.qml \
+DISTFILES += qml/shanty.qml \
+    qml/cover/CoverPage.qml \
+    qml/pages/FirstPage.qml \
+    qml/pages/SecondPage.qml \
     ../rpm/shanty.changes.in \
     ../rpm/shanty.changes.run.in \
     ../rpm/shanty.spec \
     ../translations/*.ts \
-    ../shanty.desktop
+    shanty.desktop
 
 SAILFISHAPP_ICONS = 86x86 108x108 128x128 172x172
+
+# Template layout note: qml/, shanty.desktop and icons/<size>/ live inside
+# app/ (moved from the repo root during the SDK bring-up), matching
+# sailfishapp.prf's resolved paths — the prf installs qml →
+# /usr/share/$TARGET, the desktop file → /usr/share/applications and the
+# icons → /usr/share/icons/hicolor/<size>/apps. Update tests/packaging
+# (whose path contract asserted the old root layout) together with this.
 
 # to disable building translations every time, comment out the
 # following CONFIG line

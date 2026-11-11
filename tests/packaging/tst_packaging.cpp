@@ -144,6 +144,11 @@ private:
         return QStringLiteral(SHANTY_ROOT) +
                QStringLiteral("/app/app.pro");
     }
+    // Template artifacts live inside app/ (sailfishapp.prf contract):
+    // desktop file, qml/ tree and icons/<size>/.
+    static QString appPath() {
+        return QStringLiteral(SHANTY_ROOT) + QStringLiteral("/app");
+    }
     // TARGET of the shipped application; empty string reported as failure.
     QString appTarget();
 };
@@ -253,7 +258,7 @@ void TestPackaging::rpmSpecFilesCoverInstallSetFromAppTemplate() {
     const QString target = appTarget();
     QVERIFY(!target.isEmpty());
     const QString desktop = readFileOrThrow(
-        QStringLiteral(SHANTY_ROOT) + QStringLiteral("/shanty.desktop"));
+        QStringLiteral(SHANTY_ROOT) + QStringLiteral("/app/shanty.desktop"));
     QVERIFY2(desktop.contains(QRegularExpression(
                  QStringLiteral("Exec=%1\\s*$").arg(target),
                  QRegularExpression::MultilineOption)),
@@ -300,9 +305,9 @@ void TestPackaging::declaredIconSizesShipPngFiles() {
     QVERIFY2(sizes.count() >= 3,
              "expected at least 3 declared icon sizes");
     for (const QString& size : sizes) {
-        const QString path = QStringLiteral(SHANTY_ROOT) +
+        const QString path = appPath() +
                              QStringLiteral("/icons/%1/%2.png").arg(size,
-                                                                   target);
+                                                                    target);
         QVERIFY2(QFileInfo::exists(path),
                  qPrintable(QStringLiteral(
                                 "declared icon size missing on disk: %1")
@@ -310,11 +315,10 @@ void TestPackaging::declaredIconSizesShipPngFiles() {
     }
     // The hicolor wildcard in %files is only valid while the sizes stay
     // in the icons/ tree layout above.
-    QVERIFY2(QDir(QStringLiteral(SHANTY_ROOT) +
-                  QStringLiteral("/icons"))
+    QVERIFY2(QDir(appPath() + QStringLiteral("/icons"))
                  .entryList(QDir::Dirs | QDir::NoDotAndDotDot)
                  .count() >= sizes.count(),
-             "icons/ tree holds fewer size dirs than SAILFISHAPP_ICONS");
+             "app/icons/ tree holds fewer size dirs than SAILFISHAPP_ICONS");
 }
 
 // Case 5 — every QML/translation/packaging file the app template lists in
@@ -329,26 +333,31 @@ void TestPackaging::distfilesAndTranslationSourcesExist() {
         qmakeVariableTokens(readFileOrThrow(appProPath()),
                             QStringLiteral("DISTFILES"));
     for (const QString& token : tokens) {
-        if (!token.startsWith(QStringLiteral("../"))) continue;
-        const QString relative = token.mid(2);
+        // qmake resolves each DISTFILES token relative to app/; "../"
+        // entries climb to the repo root.
+        const QString absDir = token.startsWith(QStringLiteral("../"))
+            ? QStringLiteral(SHANTY_ROOT)
+            : appPath();
+        const QString relative = token.startsWith(QStringLiteral("../"))
+            ? token.mid(2)
+            : token;
         if (relative.contains(QChar::fromLatin1('*'))) {
             const QString dir =
                 relative.section(QChar::fromLatin1('/'), 0, -2);
             const QString pattern = relative.section(QChar::fromLatin1('/'),
                                                      -1);
-            QVERIFY2(!QDir(QStringLiteral(SHANTY_ROOT) + QChar::fromLatin1('/') +
-                           dir)
+            QVERIFY2(!QDir(absDir + QChar::fromLatin1('/') + dir)
                           .entryList(QStringList{pattern}, QDir::Files)
                           .isEmpty(),
                      qPrintable(QStringLiteral(
-                                    "DISTFILES expansion empty: ../%1")
-                                    .arg(relative)));
+                                     "DISTFILES expansion empty: %1")
+                                     .arg(token)));
         } else {
-            QVERIFY2(QFileInfo::exists(QStringLiteral(SHANTY_ROOT) +
-                                       QChar::fromLatin1('/') + relative),
+            QVERIFY2(QFileInfo::exists(absDir + QChar::fromLatin1('/') +
+                                       relative),
                      qPrintable(QStringLiteral(
-                                    "DISTFILES path missing on disk: ../%1")
-                                    .arg(relative)));
+                                    "DISTFILES path missing on disk: %1")
+                                     .arg(token)));
         }
         checked << relative;
     }
@@ -400,7 +409,7 @@ void TestPackaging::qmlUserVisibleStringsHaveCatalogueEntries() {
     QSet<QString> qmlStrings;
     int qmlFilesChecked = 0;
     QDirIterator it(
-        QStringLiteral(SHANTY_ROOT) + QStringLiteral("/qml"),
+        appPath() + QStringLiteral("/qml"),
         QStringList{QStringLiteral("*.qml")}, QDir::Files,
         QDirIterator::Subdirectories);
     while (it.hasNext()) {
