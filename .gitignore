@@ -13,3 +13,10 @@ Makefile*
 
 # sfdk RPM output directory
 /RPMS/
+
+# docs/ledger stay out of version control (coordinator convention)
+/ISSUES.md
+/PROJECT.md
+/logo.jpg
+.qmake.stash
+documentation.list
