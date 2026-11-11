@@ -38,6 +38,19 @@ void NavigationViewModel::openPlayer(const std::string& context) {
     notifyChanged();
 }
 
+void NavigationViewModel::openPlaylist() {
+    if (stack_.back() != Page::Library) {
+        // Documented no-op: same single rule as the other siblings — covers
+        // Playlist → Playlist and every swap onto a non-root top. Wave-8
+        // follow-up adding the fourth sibling; see the header's decision
+        // record (the SH-603 page had no navigation path before this).
+        invalidate("openPlaylist: not from Library");
+        return;
+    }
+    stack_.push_back(Page::Playlist);
+    notifyChanged();
+}
+
 void NavigationViewModel::back() {
     if (stack_.size() <= 1) {
         // Documented no-op: the Library root can never be popped off, so a

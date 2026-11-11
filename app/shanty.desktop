@@ -20,4 +20,9 @@ ApplicationName=shanty
 # the two directories a local audio player with M3U import/export must
 # see (caught by the emulator bring-up: the library scan found 0 tracks
 # with the empty default permission set).
-Permissions=Music
+# Audio permission: the base sailjail profile denies the PulseAudio
+# socket by default; without this group QMediaPlayer's gstreamer
+# pulsesink dies with "Failed to connect: Connection refused" on every
+# play (caught by the wave-8b device acceptance drive: the player page
+# advanced its position clock while PulseAudio never saw a sink input).
+Permissions=Music;Audio

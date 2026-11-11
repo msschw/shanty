@@ -21,6 +21,8 @@ void NavigationFacade::openPlayer(const QString& context) {
     viewModel_.openPlayer(context.toStdString());
 }
 
+void NavigationFacade::openPlaylist() { viewModel_.openPlaylist(); }
+
 void NavigationFacade::back() { viewModel_.back(); }
 
 QString NavigationFacade::currentPage() const {
@@ -29,6 +31,8 @@ QString NavigationFacade::currentPage() const {
             return QStringLiteral("settings");
         case NavigationViewModel::Page::Player:
             return QStringLiteral("player");
+        case NavigationViewModel::Page::Playlist:
+            return QStringLiteral("playlist");
         case NavigationViewModel::Page::Library:
             break;
     }

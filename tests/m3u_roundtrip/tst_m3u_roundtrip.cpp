@@ -60,6 +60,13 @@ private slots:
     void roundTripKeepsEntriesAndMetadata();
     void roundTripSurvivesWhitespaceDifferences();
     void exportTargetExtensionChoosesEncodingRule();
+    // Wave-8b device-drive regression: decodeUtf8Points dropped the lead
+    // byte's bits, so 2-byte UTF-8 sequences (U+0080..U+07FF, e.g. é/ï)
+    // decoded to a bare 6-bit value and the .m3u Latin-1 export silently
+    // rewrote titles ("Café" → "Caf)"; on device the exported file even
+    // carried control bytes 03/19 from the double-encoded detour).
+    void latin1ExportRepresentsTwoByteCodePointsExactly();
+    void latin1RoundTripIsByteLevelIdempotent();
 };
 
 void TestM3uRoundtrip::serializesHeaderAndEntries() {
@@ -128,6 +135,51 @@ void TestM3uRoundtrip::exportTargetExtensionChoosesEncodingRule() {
         const Playlist reparsed = parseOf(result.data, "/x/reparsed.m3u8");
         QCOMPARE(reparsed.count(), simplePlaylist().count());
     }
+}
+
+void TestM3uRoundtrip::latin1ExportRepresentsTwoByteCodePointsExactly() {
+    // Stored metadata is UTF-8 ("Café" = 43 61 66 C3 A9). A .m3u target
+    // re-encodes to real Latin-1 whenever every code point fits (é = U+00E9
+    // → byte E9). The dropped-lead-bits decode produced ')' (0x29) instead.
+    M3uPlaylistCodec codec;
+    Playlist playlist;
+    playlist.add(entry("/a.mp3", "Caf\xC3\xA9", 4));
+
+    const shanty::SerializeResult result =
+        codec.serialize(playlist, "/x/cafe.m3u");
+    QVERIFY(result.status == shanty::SerializeResult::Status::Success);
+    QVERIFY2(result.data.find("Caf\xE9\n") != std::string::npos,
+             ".m3u export must carry the real Latin-1 byte E9 for é");
+}
+
+void TestM3uRoundtrip::latin1RoundTripIsByteLevelIdempotent() {
+    M3uPlaylistCodec codec;
+
+    // (1) A legacy .m3u payload with real Latin-1 metadata (E9) parses to
+    // stored UTF-8 and re-exports to the SAME byte sequence.
+    const std::string latin1Payload =
+        "#EXTM3U\n#EXTINF:4,Caf\xE9\n/a.mp3\n";
+    const Playlist stored = parseOf(latin1Payload, "/x/legacy.m3u");
+    QCOMPARE(stored.count(), size_t(1));
+    QCOMPARE(QString::fromStdString(stored.entries()[0].title),
+             QString::fromUtf8("Caf\xC3\xA9"));
+    const shanty::SerializeResult out1 =
+        codec.serialize(stored, "/x/legacy.m3u");
+    QVERIFY(out1.status == shanty::SerializeResult::Status::Success);
+    QCOMPARE(out1.data, latin1Payload);
+
+    // (2) A .m3u payload carrying UTF-8 bytes (no BOM — e.g. an earlier
+    // export of a title that exceeds Latin-1) is stored under the Latin-1
+    // rules (every byte becomes its own code point, re-encoded to UTF-8).
+    // The export must reproduce the stored bytes verbatim (decode → Latin-1
+    // refit) — the wave-8b device bug turned C3 83 into 03 here instead.
+    const std::string utf8BytesPayload =
+        "#EXTM3U\n#EXTINF:4,Caf\xC3\xA9\n/a.mp3\n";
+    const Playlist stored2 = parseOf(utf8BytesPayload, "/x/utf8bytes.m3u");
+    const shanty::SerializeResult out2 =
+        codec.serialize(stored2, "/x/utf8bytes.m3u");
+    QVERIFY(out2.status == shanty::SerializeResult::Status::Success);
+    QCOMPARE(out2.data, utf8BytesPayload);
 }
 
 QTEST_MAIN(TestM3uRoundtrip)

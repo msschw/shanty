@@ -58,7 +58,8 @@ private slots:
     // ---- valid transitions (pushes from the root, back to Library) ---------
     void openSettingsPushesSiblingOntoRoot();
     void openPlayerPushesSiblingWithOptionalContext();
-    void backReturnsToLibraryFromSettingsAndPlayer();
+    void openPlaylistPushesSiblingOntoRoot();
+    void backReturnsToLibraryFromEverySibling();
 
     // ---- invalid pushes (sibling swaps and self-pushes) --------------------
     void pushesWhileSiblingOnTopAreInvalidNoops();
@@ -119,7 +120,7 @@ void TestNavigation::openPlayerPushesSiblingWithOptionalContext() {
     QCOMPARE(bare.invalidReasons.size(), size_t(0));
 }
 
-void TestNavigation::backReturnsToLibraryFromSettingsAndPlayer() {
+void TestNavigation::backReturnsToLibraryFromEverySibling() {
     Fixture f;
     f.vm.openSettings();
     f.vm.back();
@@ -141,12 +142,40 @@ void TestNavigation::backReturnsToLibraryFromSettingsAndPlayer() {
     QCOMPARE(f.tops.back(), NavigationViewModel::Page::Library);
     QCOMPARE(f.depths.back(), size_t(1));
     QCOMPARE(f.invalidReasons.size(), size_t(0));
+
+    // Playlist (wave-8 follow-up: the SH-603 page needed a navigation
+    // path — the original three-page contract predates the checklist's
+    // M3U round-trip rows) unwinds onto the Library root the same way.
+    f.vm.openPlaylist();
+    QCOMPARE(f.vm.currentPage(), NavigationViewModel::Page::Playlist);
+    f.vm.back();
+    QCOMPARE(f.vm.currentPage(), NavigationViewModel::Page::Library);
+    QCOMPARE(f.vm.depth(), size_t(1));
+    QCOMPARE(f.tops.size(), size_t(6));
+    QCOMPARE(f.tops.back(), NavigationViewModel::Page::Library);
+    QCOMPARE(f.depths.back(), size_t(1));
+    QCOMPARE(f.invalidReasons.size(), size_t(0));
+}
+
+void TestNavigation::openPlaylistPushesSiblingOntoRoot() {
+    // Same push rule as Settings/Player (one rule, now four siblings):
+    // Library → Playlist pushes, exactly one transition, no rejections.
+    Fixture f;
+    f.vm.openPlaylist();
+
+    QCOMPARE(f.vm.currentPage(), NavigationViewModel::Page::Playlist);
+    QCOMPARE(f.vm.depth(), size_t(2));
+    QCOMPARE(f.vm.canGoBack(), true);
+    QCOMPARE(f.tops.size(), size_t(1));
+    QCOMPARE(f.tops.back(), NavigationViewModel::Page::Playlist);
+    QCOMPARE(f.depths.back(), size_t(2));
+    QCOMPARE(f.invalidReasons.size(), size_t(0));
 }
 
 void TestNavigation::pushesWhileSiblingOnTopAreInvalidNoops() {
-    // Documented decision (one rule, four consequences): a push is valid
-    // only while Library is on top — Settings→Settings, Player→Player and
-    // the sibling swaps Settings→Player / Player→Settings are no-ops.
+    // Documented decision (one rule, N consequences): a push is valid
+    // only while Library is on top — Settings→Settings, Player→Player,
+    // Playlist→Playlist and every sibling swap are no-ops.
     Fixture f;
     f.vm.openSettings();  // sibling now on top
 
@@ -156,8 +185,11 @@ void TestNavigation::pushesWhileSiblingOnTopAreInvalidNoops() {
     f.vm.openPlayer();  // Settings → Player (sibling swap)
     QCOMPARE(f.vm.currentPage(), NavigationViewModel::Page::Settings);
     QCOMPARE(f.vm.depth(), size_t(2));
-    QCOMPARE(f.invalidReasons.size(), size_t(2));
-    QCOMPARE(lastReason(f.invalidReasons), QString("openPlayer: not from Library"));
+    f.vm.openPlaylist();  // Settings → Playlist (sibling swap)
+    QCOMPARE(f.vm.currentPage(), NavigationViewModel::Page::Settings);
+    QCOMPARE(f.vm.depth(), size_t(2));
+    QCOMPARE(f.invalidReasons.size(), size_t(3));
+    QCOMPARE(lastReason(f.invalidReasons), QString("openPlaylist: not from Library"));
     QCOMPARE(f.tops.size(), size_t(1));  // no extra transition notifications
 
     // The stack is untouched: back() still unwinds the original sibling.
@@ -172,10 +204,25 @@ void TestNavigation::pushesWhileSiblingOnTopAreInvalidNoops() {
     const size_t changed = f.tops.size();  // = 3 (Library top after back)
     f.vm.openPlayer();  // Player → Player
     f.vm.openSettings();  // Player → Settings (sibling swap)
+    f.vm.openPlaylist();  // Player → Playlist (sibling swap)
     QCOMPARE(f.vm.currentPage(), NavigationViewModel::Page::Player);
     QCOMPARE(f.vm.depth(), size_t(2));
     QCOMPARE(f.tops.size(), changed);
-    QCOMPARE(f.invalidReasons.size(), size_t(4));
+    QCOMPARE(f.invalidReasons.size(), size_t(6));
+    QCOMPARE(lastReason(f.invalidReasons), QString("openPlaylist: not from Library"));
+
+    // Playlist behaves as a sibling of the same rule.
+    f.vm.back();
+    f.vm.openPlaylist();  // root → Playlist, valid
+    QCOMPARE(f.vm.currentPage(), NavigationViewModel::Page::Playlist);
+    const size_t changed2 = f.tops.size();
+    f.vm.openPlaylist();  // Playlist → Playlist
+    f.vm.openPlayer("song:d.mp3");  // Playlist → Player (sibling swap)
+    f.vm.openSettings();  // Playlist → Settings (sibling swap)
+    QCOMPARE(f.vm.currentPage(), NavigationViewModel::Page::Playlist);
+    QCOMPARE(f.vm.depth(), size_t(2));
+    QCOMPARE(f.tops.size(), changed2);
+    QCOMPARE(f.invalidReasons.size(), size_t(9));
     QCOMPARE(lastReason(f.invalidReasons), QString("openSettings: not from Library"));
 }
 

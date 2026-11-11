@@ -11,6 +11,17 @@ Page {
 
     allowedOrientations: Orientation.All
 
+    // Keep the NavigationViewModel in sync with Silica's page stack: when
+    // this sibling page is popped (back swipe), the view model's stack top
+    // must unwind as well (back() is only valid when a sibling sits on the
+    // root — the guard prevents double-pops). Same pattern as PlayerPage.
+    onStatusChanged: {
+        if (status === PageStatus.Inactive && pageStack.depth === 1 &&
+                navigation.depth > 1) {
+            navigation.back()
+        }
+    }
+
     function entryName(entry) {
         return entry.title !== "" ? entry.title
                                   : entry.path.split("/").pop()

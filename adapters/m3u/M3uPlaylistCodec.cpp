@@ -90,7 +90,15 @@ bool decodeUtf8Points(const std::string& s, std::vector<unsigned int>& points) {
         if (b == 0xED && b1 > 0x9F) return false;
         if (b == 0xF0 && b1 < 0x90) return false;
         if (b == 0xF4 && b1 > 0x8F) return false;
-        unsigned int cp = b1 & 0x3F;
+        // Wave-8b fix (locked by tst_m3u_roundtrip): the code point must
+        // assemble from the lead byte's payload bits too — the previous
+        // `cp = b1 & 0x3F` start dropped them, so every multi-byte sequence
+        // decoded to garbage (2-byte "C3 A9" → U+0029) and the .m3u
+        // Latin-1 export silently corrupted titles (device-observed:
+        // exported control bytes 03/19 after a Latin-1 round trip).
+        unsigned int cp =
+            (b & (len == 2 ? 0x1Fu : len == 3 ? 0x0Fu : 0x07u)) << 6;
+        cp |= b1 & 0x3F;
         if (len >= 3) {
             if ((p[i + 2] & 0xC0) != 0x80) return false;
             cp = (cp << 6) | (p[i + 2] & 0x3F);

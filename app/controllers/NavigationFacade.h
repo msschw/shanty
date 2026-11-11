@@ -17,7 +17,7 @@ namespace shanty {
 class NavigationFacade : public QObject {
     Q_OBJECT
 
-    /// "library" (root) | "settings" | "player".
+    /// "library" (root) | "settings" | "player" | "playlist".
     Q_PROPERTY(QString currentPage READ currentPage NOTIFY navigationChanged)
     /// Stack depth; 1 = bare root (no sibling page on top).
     Q_PROPERTY(int depth READ depth NOTIFY navigationChanged)
@@ -34,6 +34,7 @@ public:
     //      invalidNavigation(reason), surfaced as toasts by the shell) -----
     Q_INVOKABLE void openSettings();
     Q_INVOKABLE void openPlayer(const QString& context = QString());
+    Q_INVOKABLE void openPlaylist();
     Q_INVOKABLE void back();
 
     // ---- Q_PROPERTY accessors ----------------------------------------------

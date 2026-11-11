@@ -93,6 +93,16 @@ Page {
                 onClicked: pushPlayerPage()
             }
             MenuItem {
+                // Wave-8 follow-up: the SH-603 playlist page previously had
+                // no navigation path (see NavigationViewModel.h decision
+                // record); this item is its only entry point.
+                text: qsTr("Playlist")
+                onClicked: {
+                    navigation.openPlaylist()
+                    pageStack.push(Qt.resolvedUrl("PlaylistPage.qml"))
+                }
+            }
+            MenuItem {
                 text: qsTr("Rescan library")
                 onClicked: rescan()
             }
@@ -244,7 +254,11 @@ Page {
                 text: qsTr("Tracks (%1)").arg(library.tracks.length)
             }
 
-            Row {
+            // Wave-8b device-drive fix: a plain Row overflows the 720-px
+            // screen — the third button ("Play selection") was clipped off
+            // and unreachable by touch (checklist A2 blocker). Flow wraps
+            // the buttons onto the next line instead.
+            Flow {
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * Theme.horizontalPageMargin
                 spacing: Theme.paddingLarge

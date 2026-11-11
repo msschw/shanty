@@ -5,8 +5,8 @@
 // Phase B and will wrap/expose this class via a QObject facade later.
 // Copyright 2026 Shanty contributors. SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Model: a single simple LIFO page stack over the three dedicated views of
-// the charter (PROJECT.md) — pages Library (root), Settings, Player.
+// Model: a single simple LIFO page stack over the dedicated views of the
+// charter (PROJECT.md) — pages Library (root), Settings, Player, Playlist.
 //
 // Documented decisions (SH-601; every one locked by tst_navigation):
 //   - Pushes happen only FROM the root. openSettings()/openPlayer(...) are
@@ -37,7 +37,15 @@
 //     the suite, kept stable for the QML layer):
 //         "openSettings: not from Library"
 //         "openPlayer: not from Library"
+//         "openPlaylist: not from Library"
 //         "back: already at the root"
+//
+// Wave-8 follow-up (emulator bring-up, recorded in ISSUES.md §1bis): the
+// original contract listed only Library/Settings/Player, which left the
+// SH-603 PlaylistPage without any navigation path — the acceptance
+// checklist's B2 rows (M3U import/edit/export round trip) were impossible
+// on device. openPlaylist() extends the ONE push rule to a fourth sibling;
+// the rule itself (pushes only from the root) is unchanged.
 #pragma once
 
 #include <cstddef>
@@ -50,7 +58,7 @@ namespace shanty {
 class NavigationViewModel {
 public:
     /// The dedicated views of the charter; Library is the root page.
-    enum class Page { Library, Settings, Player };
+    enum class Page { Library, Settings, Player, Playlist };
 
     NavigationViewModel();
 
@@ -65,6 +73,8 @@ public:
     void openSettings();
     /// Library → Player (push); invalid no-op unless Library is on top.
     void openPlayer(const std::string& context = std::string());
+    /// Library → Playlist (push); invalid no-op unless Library is on top.
+    void openPlaylist();
 
     /// Pops the top sibling; invalid no-op on the Library root.
     void back();

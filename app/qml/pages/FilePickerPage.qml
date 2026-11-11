@@ -21,6 +21,11 @@ Page {
     property var listProvider: null
 
     property string currentDir
+    /// Text of the save-mode file-name field. The TextField's id lives in
+    /// the header Component's scope and is NOT resolvable from page-level
+    /// functions (a ReferenceError killed every save accept on device, wave
+    /// 8b), so the field mirrors its text into this page-level property.
+    property string fileName
     property bool _completed: false
 
     signal accepted(string path)
@@ -56,13 +61,22 @@ Page {
     }
 
     function acceptCurrent() {
+        // Wave-8b fix (device drive): the picker owns its dismiss, exactly
+        // like the open-mode row delegate (accepted() → pop). The pushing
+        // pages only react to the signal — before this, save- and
+        // folder-mode accepts left the picker on top with no back gesture
+        // available (the emulator's left-edge swipe is the HOME gesture).
+        if (_completed) return  // one accept per picker instance
         if (mode === "folder") {
             _completed = true
             accepted(currentDir)
-        } else if (mode === "save" && fileNameField.text.trim() !== "") {
+        } else if (mode === "save" && fileName.trim() !== "") {
             _completed = true
-            accepted(joinPath(currentDir, fileNameField.text.trim()))
+            accepted(joinPath(currentDir, fileName.trim()))
+        } else {
+            return  // no choice made yet; the picker stays up
         }
+        pageStack.pop()
     }
 
     onStatusChanged: {
@@ -123,6 +137,10 @@ Page {
                 width: parent.width
                 placeholderText: qsTr("File name")
                 label: page.currentDir
+                // The id is scoped to this header Component (not visible
+                // from page-level acceptCurrent), so mirror the text into
+                // the page-level property the accept path reads.
+                onTextChanged: page.fileName = text
                 EnterKey.onClicked: page.acceptCurrent()
             }
         }

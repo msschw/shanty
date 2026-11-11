@@ -34,11 +34,29 @@ inline QVariantList listDirectory(const QString& path,
         }
     }
 
+    // Wave-8 fix (locked by tst_picker_support): the suffixes must NOT be
+    // handed to QDir::entryInfoList as nameFilters — QDir treats them as
+    // glob patterns, so ".m3u" matched no real file and the M3U import
+    // picker could only ever see directories. The documented semantics are
+    // the QML layer's: case-insensitive endsWith, directories always
+    // admitted, empty filter admits everything.
     const QFileInfoList infos = dir.entryInfoList(
-        suffixes, QDir::AllDirs | QDir::Files | QDir::NoDotAndDotDot |
-                      QDir::Readable,
+        QDir::AllDirs | QDir::Files | QDir::NoDotAndDotDot | QDir::Readable,
         QDir::DirsFirst | QDir::Name);
     for (const QFileInfo& info : infos) {
+        if (!info.isDir() && !suffixes.isEmpty()) {
+            const QString name = info.fileName();
+            bool admitted = false;
+            for (const QString& suffix : suffixes) {
+                if (name.endsWith(suffix, Qt::CaseInsensitive)) {
+                    admitted = true;
+                    break;
+                }
+            }
+            if (!admitted) {
+                continue;
+            }
+        }
         QVariantMap item;
         item.insert(QStringLiteral("name"), info.fileName());
         item.insert(QStringLiteral("path"), info.absoluteFilePath());

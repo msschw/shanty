@@ -38,3 +38,7 @@ SUBDIRS += settings_vm
 # %files install-set coverage, icons, DISTFILES/translations existence,
 # soft .ts-vs-QML parity).
 SUBDIRS += packaging
+
+# Wave-8 follow-up: FilePickerPage directory-listing contract (suffix
+# filter semantics shared by the QML layer and the facade provider).
+SUBDIRS += picker_support

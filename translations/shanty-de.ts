@@ -114,6 +114,10 @@
         <source>Play selection</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Playlist</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>PlayerPage</name>
