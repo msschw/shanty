@@ -16,5 +16,8 @@ Name[de]=shanty
 OrganizationName=org.myorg
 # ApplicationName does not have to be identical to Name
 ApplicationName=shanty
-# Add the required permissions here
-Permissions=
+# Music permission: sandboxes in ${HOME}/Music and ${HOME}/Playlists —
+# the two directories a local audio player with M3U import/export must
+# see (caught by the emulator bring-up: the library scan found 0 tracks
+# with the empty default permission set).
+Permissions=Music

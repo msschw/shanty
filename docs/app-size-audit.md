@@ -17,23 +17,30 @@ Shanty ships as **one Silica application**. The lean ceiling is:
 | --- | --- |
 | Installed executable (`/usr/bin/shanty`) | **< 2 MB** (2 × 1024 kB) |
 | Shipped data payload (`/usr/share/shanty` qml+`.qm`, icons, desktop) | included in the audit, expected ≪ 1 MB (template: qml 28 kB, icons 64 kB, translations 12 kB) |
-| Runtime dependencies (RPM `Requires`) | **exactly the five below — no additions** |
+| Runtime dependencies (RPM `Requires`) | **exactly the one below — no additions** |
 | Background services / daemons | **none** (playback lives in the app process) |
 
 Runtime dependency list — closed, charter-minimal, mirrored 1:1 in
 `rpm/shanty.spec` `Requires`:
 
-1. `sailfishsilica-qt5` (Silica UI framework)
-2. `pkgconfig(sailfishapp)` (`SailfishApp` entry point, app shell)
-3. `pkgconfig(Qt5Core)`
-4. `pkgconfig(Qt5Qml)`
-5. `pkgconfig(Qt5Quick)`
+1. `sailfishsilica-qt5` (Silica UI framework; transitively pulls
+   `Qt5Core`, `Qt5Qml`, `Qt5Quick` and the `sailfishapp` runtime library,
+   which itself arrives via the automatic `libsailfishapp.so.1` soname
+   dependency of `/usr/bin/shanty`)
+
+The Qt/`pkgconfig(...)` entries are **BuildRequires only**: packages named
+`pkgconfig(...)` are SDK-side `-devel` packages that do not exist on
+devices — the first emulator install refused `rpm -Uvh` with
+"pkgconfig(Qt5Core) is needed by shanty". Qt libraries are pulled in at
+run time through automatic soname dependencies (verified on the emulator:
+`Requires: libc.so.6 ... libsailfishapp.so.1` plus the declared
+`sailfishsilica-qt5`).
 
 Audio decode rides on this list: the engine adapter uses the Sailfish Qt
 Multimedia fork (GStreamer/PulseAudio through the OS media stack, see
 `docs/engine-adapter.md`), which the platform provides via
 `sailfishsilica-qt5`/system libraries — no extra codec package named in
-`Requires` beyond the five above. Any new dependency beyond the five is a
+`Requires` beyond the one above. Any new dependency beyond it is a
 charter deviation and needs an ISSUES.md decision record before merge.
 
 ## 2. Component inventory

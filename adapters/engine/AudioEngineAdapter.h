@@ -60,10 +60,11 @@
 #include "core/ports/IAudioEngine.h"
 #include "core/ports/IEffectChain.h"
 
-#ifdef HAVE_QTMULTIMEDIA
-// QtMultimedia, global namespace (device/SDK build only; see SH-D402-2).
+// QtMultimedia, global namespace. Forward-declared unconditionally: the
+// private player_ pointer below must be part of ONE class definition for
+// every TU (ODR). The host build never constructs the player — see the
+// ctor's stub variant (SH-D402-2).
 class QMediaPlayer;
-#endif
 
 namespace shanty {
 
@@ -112,11 +113,20 @@ public:
     void bypass() override;
 
 private:
-#ifdef HAVE_QTMULTIMEDIA
+    // ODR note (SH-E6 emulator bring-up): these members are declared
+    // UNCONDITIONALLY. An earlier revision guarded them with
+    // #ifdef HAVE_QTMULTIMEDIA, giving the host and device variants
+    // different object layouts; main's TU then stacked the 48-byte view
+    // of this object directly under the 76-byte view the device ctor
+    // wrote — durationSeconds_ = -1 landed in the neighbouring
+    // PlaylistService hook slot and crashed on the first std::function
+    // assignment. The conditional backend wiring lives ONLY in the
+    // .cpp now; the layout is identical everywhere.
     QMediaPlayer* player_ = nullptr;
 
-    // Device-only signal translators (defined in the .cpp under the same
-    // guard; only they may invoke the public callbacks).
+    // Device-only signal translators (defined in the .cpp under the
+    // HAVE_QTMULTIMEDIA guard; only they may invoke the public
+    // callbacks. Never called on the host stub variant).
     void onPlayerStateChanged(int newState);
     void onPlayerError(int newError, const std::string& errorString);
     void onPlayerPositionChanged(qint64 positionMs);
@@ -124,7 +134,7 @@ private:
     void onPlayerMediaChanged();
 
     std::string currentPath_;  // entry handed to play() (for error reporting)
-#endif
+
     // Cached 1-second-granular passthrough state (device variant only).
     long positionSeconds_ = 0;
     long durationSeconds_ = static_cast<long>(-1);  // Track::kUnknownDuration

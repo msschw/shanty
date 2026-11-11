@@ -168,3 +168,4 @@ Part C — Conclusion rubric
 | Date | Session | Automated gate | Manual rows ticked | Total rows |
 | --- | --- | --- | --- | --- |
 | 2026-11-10 | SH-701 charter | PASS (21 suites / 248 cases) | 0 of 22 | 22 |
+| 2026-11-11 | wave-8 emulator (headless, i486) | PASS (22 suites / 256 cases) | 0 of 22 ticked — partial OBSERVED evidence only: **C3** (restart keeps managed folders + config, screenshots), **C1**-lite (re-scan of a new folder lists only .ogg), **E2** (Library page renders fully: folder list, whitelist/blacklist sections, multi-select buttons, Tracks (43)), **E1**-lite (shell launches, cover unverified). Rows A2–A5/B2-*/C2/D*/E3–E5 need touch input (FilePicker, page navigation, playback control) — headless emulator cannot drive them. Journal clean (0 warnings/errors) after the wave-8 fixes (ODR header, `import "pages"`, toast color, sailjail `Permissions=Music`). | 22 |

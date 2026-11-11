@@ -168,12 +168,15 @@ QString TestPackaging::appTarget() {
 
 // Case 1 — the spec must carry the canonical Sailfish SDK template keys.
 // Rationale: mb2/sfdk (SDK "build in the SDK" path, SH-702 Phase B)
-// resolves Source0 = %{name}-%{version}.tar.bz2 and the runtime Requires
-// set from this file; sailfishsilica-qt5 (UI framework) and
-// pkgconfig(sailfishapp) (SailfishApp entry point) are the two deps every
-// Silica app needs at RUN time, not only when building. Phase A red
-// reason: the template spec has only the BuildRequires half of the
-// pattern — runtime Requires lacked pkgconfig(sailfishapp).
+// resolves Source0 = %{name}-%{version}.tar.bz2 from this file. The
+// RUNTIME Requires set must be device-installable: packages named
+// pkgconfig(...) are -devel packages that exist only in the SDK —
+// caught by the first emulator install (rpm -Uvh refused with
+// "pkgconfig(Qt5Core) is needed by shanty"). Qt libs therefore come in
+// through automatic soname dependencies; sailfishsilica-qt5 (UI
+// framework, transitively pulls Qt5Core/Qml/Quick) is the only declared
+// runtime dep. The pkgconfig() entries belong in BuildRequires, where
+// the SDK build needs them.
 void TestPackaging::rpmSpecDeclaresSdkTemplateKeys() {
     QVERIFY(requireReadable(specPath(), "rpm/shanty.spec"));
     const QString spec = readFileOrThrow(specPath());
@@ -196,10 +199,25 @@ void TestPackaging::rpmSpecDeclaresSdkTemplateKeys() {
                  QStringLiteral("^Requires:\\s*sailfishsilica-qt5"),
                  QRegularExpression::MultilineOption)),
              "spec must declare runtime Requires: sailfishsilica-qt5");
-    QVERIFY2(spec.contains(QRegularExpression(
-                 QStringLiteral("^Requires:\\s*pkgconfig\\(sailfishapp\\)"),
-                 QRegularExpression::MultilineOption)),
-             "spec must declare runtime Requires: pkgconfig(sailfishapp)");
+    // Runtime Requires must NOT name pkgconfig() packages: those resolve
+    // to -devel packages absent from devices/emulators (the emulator
+    // install failed exactly on pkgconfig(Qt5Core) etc.). Qt libraries
+    // are pulled in automatically via soname dependencies.
+    {
+        const QRegularExpression runtimePkgconfig(
+            QStringLiteral("^Requires:\\s*pkgconfig\\("),
+            QRegularExpression::MultilineOption);
+        QString what;
+        QRegularExpressionMatchIterator it =
+            runtimePkgconfig.globalMatch(spec);
+        while (it.hasNext())
+            what += it.next().captured(0).trimmed() + QStringLiteral("; ");
+        QVERIFY2(what.isEmpty(),
+                 qPrintable(QStringLiteral(
+                                "runtime Requires must not name "
+                                "pkgconfig() packages (device "
+                                "installability): %1").arg(what)));
+    }
     QVERIFY2(spec.contains(QRegularExpression(
                  QStringLiteral("BuildRequires:\\s*pkgconfig\\(Qt5Core\\)"))),
              "spec must declare BuildRequires: pkgconfig(Qt5Core)");

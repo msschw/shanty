@@ -6,6 +6,7 @@
 // sibling pages).
 import QtQuick 2.0
 import Sailfish.Silica 1.0
+import "pages"
 
 ApplicationWindow {
     id: appWindow
@@ -169,7 +170,10 @@ ApplicationWindow {
                         toastLabel.implicitWidth + 2 * Theme.paddingMedium)
         height: toastLabel.implicitHeight + 2 * Theme.paddingMedium
         radius: height / 2
-        color: Theme.highlightDimmer
+        // Theme.highlightDimmer is undefined on the Qt 5.6-era Silica of
+        // the 5.1 emulator image — a translucent dark overlay reads the
+        // same and binds without the runtime warning.
+        color: Qt.rgba(0.1, 0.1, 0.1, 0.9)
         opacity: 0
         Behavior on opacity { NumberAnimation { duration: 200 } }
 
