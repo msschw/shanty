@@ -1,4 +1,13 @@
-# SH-101: the app component keeps the Sailfish 'sailfishapp' template.
+# SH-101: the Sailfish 'sailfishapp' application component, extended for
+# SH-E6 Phase B (SH-601..605): the QObject facade layer (app/controllers/)
+# bridges the pure-C++ view models/services to QML, and the template QML
+# pages are replaced by the Library/Player/Playlist/Settings pages plus the
+# shared FilePickerPage/PromptPage dialogs.
+#
+# Link order (GNU ld: users before providers): the app's own objects use
+# the view models (shanty-viewmodels), which use core services
+# (shanty-core); the adapters (shanty-adapters) provide the concrete
+# port implementations and reference QtCore only.
 # NOTICE:
 #
 # Application name defined in TARGET has a corresponding QML filename.
@@ -16,12 +25,63 @@ TEMPLATE = app
 CONFIG += sailfishapp
 DEFINES += BUILD_APP
 
-SOURCES += shanty.cpp
+CONFIG += c++14
+QMAKE_CXXFLAGS += -Wall -Wextra
+
+# The controller headers use Q_OBJECT, so qmake generates moc_*.cpp
+# companions. sfdk builds IN-TREE, which would drop those generated files
+# next to the sources — where git and the license lint (tests/license scans
+# every *.cpp outside build-* trees) would see them. Route the generated
+# moc output into a top-level build-* directory instead: gitignored
+# (build-*/) and skipped by the license suite's artifact rule. In a private
+# out-of-tree build the path stays inside the private tree.
+MOC_DIR = $$OUT_PWD/../build-app-generated
+
+# Repo root include paths: the repo root (core/, adapters/, presentation/
+# header layout) plus the core root (core headers use core-relative includes
+# like "playback/PlaybackQueue.h" — same pattern as presentation/viewmodels).
+INCLUDEPATH += $$PWD/..
+INCLUDEPATH += $$PWD/../core
+
+HEADERS += \
+    controllers/NavigationFacade.h \
+    controllers/LibraryFacade.h \
+    controllers/PlaylistFacade.h \
+    controllers/PlayerFacade.h \
+    controllers/SettingsFacade.h \
+    controllers/PickerSupport.h
+
+SOURCES += shanty.cpp \
+    controllers/NavigationFacade.cpp \
+    controllers/LibraryFacade.cpp \
+    controllers/PlaylistFacade.cpp \
+    controllers/PlayerFacade.cpp \
+    controllers/SettingsFacade.cpp
+
+# Static libs built by the sibling SUBDIRS (ordered top-level project;
+# app.depends = presentation at the top level).
+LIBS += -L$$OUT_PWD/../presentation/viewmodels -lshanty-viewmodels
+LIBS += -L$$OUT_PWD/../adapters -lshanty-adapters
+LIBS += -L$$OUT_PWD/../core -lshanty-core
+
+# The adapters static lib's device variant (HAVE_QTMULTIMEDIA, see
+# adapters.pro) references QMediaPlayer symbols; the Qt Multimedia module
+# must therefore be linked into the app binary as well — same conditional
+# as the adapter's (host builds never reach this branch; see SH-D402-2).
+!onHost {
+    qtHaveModule(multimedia) {
+        QT += multimedia
+    }
+}
 
 DISTFILES += qml/shanty.qml \
     qml/cover/CoverPage.qml \
-    qml/pages/FirstPage.qml \
-    qml/pages/SecondPage.qml \
+    qml/pages/LibraryPage.qml \
+    qml/pages/SettingsPage.qml \
+    qml/pages/PlayerPage.qml \
+    qml/pages/PlaylistPage.qml \
+    qml/pages/FilePickerPage.qml \
+    qml/pages/PromptPage.qml \
     ../rpm/shanty.changes.in \
     ../rpm/shanty.changes.run.in \
     ../rpm/shanty.spec \

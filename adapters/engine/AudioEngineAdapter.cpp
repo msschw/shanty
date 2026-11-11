@@ -140,6 +140,21 @@ std::string AudioEngineAdapter::toPlainPath(const QUrl& url) {
     return url.toLocalFile().toStdString();  // percent-decoded UTF-8
 }
 
+// ---- IEffectChain (SH-D402-6 no-op/bypass section) --------------------------
+// Documented no-op on BOTH host and device variants (see the decision record
+// in the header): QtMultimedia on Sailfish has no equalizer API to wire, so
+// the chain accepts commands and discards them. EffectChainService's
+// belt-and-braces bypass sequence (bypass() + explicit zero gains) therefore
+// completes without any backend effect and without touching the transport.
+
+void AudioEngineAdapter::applyGains(const std::vector<double>& gainsDb) {
+    (void)gainsDb;  // no backend effect chain available (SH-D402-6)
+}
+
+void AudioEngineAdapter::bypass() {
+    // No backend effect chain available (SH-D402-6): nothing to bypass.
+}
+
 #ifdef HAVE_QTMULTIMEDIA
 // ---- device-only signal translators (SH-D402-2) ----------------------------
 // These are the ONLY functions that fire the public callbacks. Recorded

@@ -36,13 +36,29 @@
 //     under D3 — Shanty plays local files only, no streaming).
 // Mapping is defined for valid UTF-8 plain paths (D3 premise); non-UTF-8
 // byte sequences are NOT round-trip safe and are documented unsupported.
+//
+// Effect chain (SH-D402-6, decision recorded for the SH-502/SH-E6 Phase B
+// wiring): this adapter also implements the IEffectChain port as a
+// documented NO-OP/BYPASS. Source of the caveat: docs/engine-adapter.md —
+// QtMultimedia on Sailfish (the Qt 5.6-era fork) exposes NO equalizer API
+// and QMediaPlayer offers no audio-effect chain (a real EQ would need its
+// own GStreamer EQ pipeline or PulseAudio module-equalizer-sink, a backend
+// investigation that is out of scope for SH-E6 Phase B). The section
+// therefore ACCEPTS EffectChainService calls and DISCARDS them: applying
+// gains or a bypass changes no audible behaviour, drives no transport, and
+// reports no error — so the SH-605 settings flow (which constructs
+// EffectChainService over this chain per apply) works unchanged on the
+// device. Applying a profile is a UI no-op until a real EQ backend lands;
+// the host stub variant shares the same no-op section.
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include <QUrl>
 
 #include "core/ports/IAudioEngine.h"
+#include "core/ports/IEffectChain.h"
 
 #ifdef HAVE_QTMULTIMEDIA
 // QtMultimedia, global namespace (device/SDK build only; see SH-D402-2).
@@ -51,7 +67,9 @@ class QMediaPlayer;
 
 namespace shanty {
 
-class AudioEngineAdapter : public IAudioEngine {
+/// Implements both engine ports: IAudioEngine (transport) and IEffectChain
+/// (SH-D402-6 no-op/bypass section — see the decision record above).
+class AudioEngineAdapter : public IAudioEngine, public IEffectChain {
 public:
     /// Construction is always safe (host stub variant: no backend is
     /// touched; device variant: creates the QMediaPlayer instance).
@@ -83,6 +101,15 @@ public:
     static QUrl toLocalUrl(const std::string& plainPath);
     /// local file:// QUrl → plain UTF-8 path; "" for non-local/empty URLs.
     static std::string toPlainPath(const QUrl& url);
+
+    // ---- IEffectChain (SH-D402-6 no-op/bypass section) ----------------------
+    // Both methods accept EffectChainService calls and discard them (no
+    // audible effect, no transport side effects, no error). Kept as real
+    // overrides so the SH-605 per-apply construction compiles and runs
+    // identically on host and device; the backend limitation is the
+    // recorded decision, not a stub to be filled here.
+    void applyGains(const std::vector<double>& gainsDb) override;
+    void bypass() override;
 
 private:
 #ifdef HAVE_QTMULTIMEDIA

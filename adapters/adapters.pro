@@ -26,17 +26,23 @@ INCLUDEPATH += $$PWD
 
 VPATH = $$PWD
 
+# SH-E6 Phase B (SH-605 wiring): adapters/settings/QSettingsSettingsStore is
+# the concrete ISettingsStore for the application layer. QtCore-only
+# (QSettings/QStandardPaths), host-compilable — no extra qt entries beyond
+# the ones above.
 HEADERS += \
     m3u/M3uPlaylistCodec.h \
     filesystem/FilesystemScanner.h \
     store/FileIndexStore.h \
-    autoeq/AutoEqReader.h
+    autoeq/AutoEqReader.h \
+    settings/QSettingsSettingsStore.h
 
 SOURCES += \
     m3u/M3uPlaylistCodec.cpp \
     filesystem/FilesystemScanner.cpp \
     store/FileIndexStore.cpp \
-    autoeq/AutoEqReader.cpp
+    autoeq/AutoEqReader.cpp \
+    settings/QSettingsSettingsStore.cpp
 
 # SH-503: adapters/autoeq/AutoEqReader is deliberately Qt-free (plain C++
 # parser per the SH-503 suite contract), so no additional qt entries are
