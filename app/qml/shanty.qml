@@ -8,6 +8,7 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
 import "pages"
+import "navigation.js" as Nav
 
 ApplicationWindow {
     id: appWindow
@@ -300,7 +301,13 @@ ApplicationWindow {
 
         MouseArea {
             anchors.fill: parent
-            onClicked: navigationFacade.show("player")
+            // SH-801 sync discipline: the shell never calls facade.show()
+            // directly — the view-model command alone does NOT move the QML
+            // page stack (the pages mirror the outcome via the shared
+            // Nav.showPage helper; a bare show() left the VM on "player"
+            // while the stack stayed put — found on the device drive). The
+            // helper is the single sync point for both directions.
+            onClicked: Nav.showPage(navigationFacade, pageStack, "player")
         }
     }
 }
