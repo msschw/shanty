@@ -430,5 +430,9 @@
         <source>Playback restored</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Nothing playing</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 </TS>
