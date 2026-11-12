@@ -31,6 +31,17 @@ void PlaybackController::loadQueue(const std::vector<std::string>& paths) {
     notifyState(changed);
 }
 
+void PlaybackController::restoreQueue(const std::vector<std::string>& paths,
+                                      std::size_t index, long positionSeconds) {
+    (void)paths;
+    (void)index;
+    (void)positionSeconds;
+    // SH-805 Phase A stub: the restore-paused contract is locked red-first
+    // in tests/playback_controller; every target case must fail by
+    // assertion (with this reason observable) until Phase B implements it.
+    invalidate("unimplemented: restoreQueue");
+}
+
 void PlaybackController::play() {
     if (queue_.empty()) {
         invalidate("play: empty queue");

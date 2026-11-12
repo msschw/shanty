@@ -75,6 +75,14 @@ private slots:
     void jumpToSelectsAndPlaysTargetEntry();
     void jumpToOutOfRangeIsInvalidNoop();
 
+    // ---- session restore (SH-805 / UX-4, restore-paused invariant) ---------
+    void restoreQueueSelectsIndexPausedWithoutEngineCalls();
+    void restoredSessionReportsRestoredPositionUntilFirstPlay();
+    void restoredSessionResumeStartsAudioThroughEnginePlay();
+    void restoredSessionAnyPlayDropsTheRestoredPosition();
+    void restoreQueueEmptyPathsIsRejectedNoop();
+    void restoreQueueIndexClampedToLast();
+
     // ---- engine passthrough ------------------------------------------------
     void positionAndDurationPassThroughFromEngine();
 };
@@ -392,6 +400,92 @@ void TestPlaybackController::positionAndDurationPassThroughFromEngine() {
     f.engine.durSeconds = 187;
     QCOMPARE(f.controller.positionSeconds(), long(42));
     QCOMPARE(f.controller.durationSeconds(), long(187));
+}
+
+// ---- session restore (SH-805 / UX-4, restore-paused invariant) -----------------
+
+void TestPlaybackController::restoreQueueSelectsIndexPausedWithoutEngineCalls() {
+    Fixture f;
+    f.controller.restoreQueue({"/a.mp3", "/b.ogg", "/c.flac"}, 1, 42);
+
+    // Restore-paused invariant: restoring NEVER starts (or touches) audio.
+    QCOMPARE(f.engine.playCalls.size(), size_t(0));
+    QCOMPARE(f.engine.pauseCalls, 0);
+    QCOMPARE(f.engine.resumeCalls, 0);
+    QCOMPARE(f.engine.stopCalls, 0);
+    // The queue is adopted in the given order at the clamped saved index...
+    QCOMPARE(f.controller.currentIndex(), size_t(1));
+    QCOMPARE(asQ(f.controller.currentEntry()), QString::fromLatin1("/b.ogg"));
+    // ...and the transport sits PAUSED (never Playing, never auto-started).
+    QCOMPARE(f.controller.state(), PlaybackController::State::Paused);
+    QCOMPARE(f.invalidReasons.size(), size_t(0));
+}
+
+void TestPlaybackController::restoredSessionReportsRestoredPositionUntilFirstPlay() {
+    Fixture f;
+    f.controller.restoreQueue({"/a.mp3", "/b.ogg"}, 0, 95);
+    // The engine has not played; the display shows the persisted position.
+    f.engine.posSeconds = 7;  // the engine's own passthrough is ignored while fresh
+    QCOMPARE(f.controller.positionSeconds(), long(95));
+}
+
+void TestPlaybackController::restoredSessionResumeStartsAudioThroughEnginePlay() {
+    Fixture f;
+    f.controller.restoreQueue({"/a.mp3", "/b.ogg"}, 0, 95);
+
+    // A paused restored session must become audible on the user's resume —
+    // the engine was never started, so resume() issues engine.play (the
+    // fresh-attempt path), not engine.resume().
+    f.controller.resume();
+    QCOMPARE(f.engine.playCalls.size(), size_t(1));
+    QCOMPARE(asQ(f.engine.playCalls.front()), QString::fromLatin1("/a.mp3"));
+    QCOMPARE(f.engine.resumeCalls, 0);
+    QCOMPARE(f.controller.state(), PlaybackController::State::Playing);
+
+    // The restored offset is dropped: the position is engine passthrough
+    // again (the fresh-attempt play restarts the engine at its own position).
+    f.engine.posSeconds = 3;
+    QCOMPARE(f.controller.positionSeconds(), long(3));
+}
+
+void TestPlaybackController::restoredSessionAnyPlayDropsTheRestoredPosition() {
+    Fixture f;
+    f.controller.restoreQueue({"/a.mp3", "/b.ogg", "/c.flac"}, 0, 95);
+
+    // Any user-initiated play (here: next()) drops the restored offset.
+    f.controller.next();
+    QCOMPARE(f.engine.playCalls.size(), size_t(1));
+    f.engine.posSeconds = 2;
+    QCOMPARE(f.controller.positionSeconds(), long(2));
+
+    // And a fresh restore after a play is again display-only until played.
+    f.controller.restoreQueue({"/a.mp3"}, 0, 60);
+    f.engine.posSeconds = 1;
+    QCOMPARE(f.controller.positionSeconds(), long(60));
+}
+
+void TestPlaybackController::restoreQueueEmptyPathsIsRejectedNoop() {
+    Fixture f;
+    // Build a live session first: queue + playing.
+    f.controller.loadQueue({"/a.mp3", "/b.ogg"});
+    f.controller.play();
+    f.controller.restoreQueue({}, 0, 10);
+
+    // Documented rejection; queue, selection and transport untouched.
+    QCOMPARE(f.invalidReasons.size(), size_t(1));
+    QCOMPARE(lastReason(f.invalidReasons), QString("restore: empty queue"));
+    QCOMPARE(f.controller.state(), PlaybackController::State::Playing);
+    QCOMPARE(f.controller.currentIndex(), size_t(0));
+    QCOMPARE(f.controller.positionSeconds(), long(0));
+}
+
+void TestPlaybackController::restoreQueueIndexClampedToLast() {
+    Fixture f;
+    f.controller.restoreQueue({"/a.mp3", "/b.ogg"}, 99, 5);
+    // Selection clamps into the restored queue (documented setCurrent rule).
+    QCOMPARE(f.controller.currentIndex(), size_t(1));
+    QCOMPARE(asQ(f.controller.currentEntry()), QString::fromLatin1("/b.ogg"));
+    QCOMPARE(f.controller.state(), PlaybackController::State::Paused);
 }
 
 QTEST_MAIN(TestPlaybackController)

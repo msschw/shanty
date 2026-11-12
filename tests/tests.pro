@@ -15,6 +15,7 @@ SUBDIRS = \
     library_scan \
     filesystem_scanner \
     library_store \
+    queue_store \
     playlist_ops \
     m3u_parse \
     m3u_encoding \

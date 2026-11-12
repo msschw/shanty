@@ -89,6 +89,19 @@ public:
     /// Replaces the queue contents (selection → index 0); does NOT auto-play.
     void loadQueue(const std::vector<std::string>& paths);
 
+    /// SH-805 (UX-4): restores a persisted session PAUSED at the saved
+    /// track — replaces the queue with the given paths (given order),
+    /// selects the clamped index, and issues NO engine call that starts
+    /// audio (restore-paused invariant: a restored session never starts
+    /// audio on its own). Until the first play, positionSeconds() reports
+    /// the restored position (display-only — the engine has not played);
+    /// the first user-initiated play (resume/toggle/next/previous/jumpTo)
+    /// drops the restored offset and reverts to the engine passthrough.
+    /// Empty paths → documented rejection "restore: empty queue" (state
+    /// untouched). See the header decision notes.
+    void restoreQueue(const std::vector<std::string>& paths,
+                      std::size_t index, long positionSeconds);
+
     /// (Re)starts playback of the current entry.
     void play();
     /// Idle/Stopped → play, Playing → pause, Paused → resume.

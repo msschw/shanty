@@ -34,6 +34,7 @@ HEADERS += \
     m3u/M3uPlaylistCodec.h \
     filesystem/FilesystemScanner.h \
     store/FileIndexStore.h \
+    store/QueueStateStore.h \
     autoeq/AutoEqReader.h \
     settings/QSettingsSettingsStore.h
 
@@ -41,6 +42,7 @@ SOURCES += \
     m3u/M3uPlaylistCodec.cpp \
     filesystem/FilesystemScanner.cpp \
     store/FileIndexStore.cpp \
+    store/QueueStateStore.cpp \
     autoeq/AutoEqReader.cpp \
     settings/QSettingsSettingsStore.cpp
 

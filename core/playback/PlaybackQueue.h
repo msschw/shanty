@@ -41,6 +41,9 @@ public:
     bool empty() const { return entries_.empty(); }
     /// Empty string when the queue is empty.
     std::string current() const;
+    /// SH-805: the stored paths in queue order (persistence snapshot source
+    /// for the application layer's save hook).
+    const std::vector<std::string>& entries() const;
 
 private:
     std::vector<std::string> entries_;

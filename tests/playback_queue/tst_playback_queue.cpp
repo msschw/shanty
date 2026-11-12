@@ -21,6 +21,9 @@ private slots:
     void removeCurrentOnEmptyQueueIsNoop();
     void moveEntryReordersWhilePlaying();
     void clearResets();
+
+    // ---- SH-805: entries snapshot accessor ---------------------------------
+    void entriesReturnsStoredPathsInOrder();
 };
 
 void TestPlaybackQueue::setEntriesStartsAtFirst() {
@@ -109,6 +112,25 @@ void TestPlaybackQueue::clearResets() {
     QVERIFY(queue.empty());
     QCOMPARE(queue.currentIndex(), size_t(0));
     QCOMPARE(QString::fromStdString(queue.current()), QString());
+}
+
+void TestPlaybackQueue::entriesReturnsStoredPathsInOrder() {
+    PlaybackQueue queue;
+    queue.setEntries({"/a.mp3", "/b.ogg", "/c.flac"});
+
+    // SH-805: the persistence snapshot source — the stored paths, queue
+    // order, reference to the live storage (no copy on read).
+    QCOMPARE(queue.entries().size(), size_t(3));
+    QCOMPARE(QString::fromStdString(queue.entries()[0]),
+             QString::fromLatin1("/a.mp3"));
+    QCOMPARE(QString::fromStdString(queue.entries()[1]),
+             QString::fromLatin1("/b.ogg"));
+    QCOMPARE(QString::fromStdString(queue.entries()[2]),
+             QString::fromLatin1("/c.flac"));
+
+    // Empty queue → empty list.
+    queue.clear();
+    QCOMPARE(queue.entries().size(), size_t(0));
 }
 
 QTEST_MAIN(TestPlaybackQueue)
