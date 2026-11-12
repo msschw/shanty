@@ -113,6 +113,9 @@ private slots:
     void playFromPathsRejectionFiresNoConfirmation();
     void perTrackTransportChangesNeverConfirm();
 
+    // ---- session restore snapshot (SH-805 / UX-4) -------------------------------
+    void restoredSessionFollowsTheSnapshotRefreshContract();
+
     // ---- hooks ----------------------------------------------------------------
     void refreshFiresOnUpdatedExactlyOncePerCall();
 };
@@ -571,6 +574,27 @@ void TestPlayerViewModel::perTrackTransportChangesNeverConfirm() {
     f.controller.jumpTo(2);
     f.vm.refresh();
     QCOMPARE(f.confirmations.size(), size_t(0));
+}
+
+void TestPlayerViewModel::restoredSessionFollowsTheSnapshotRefreshContract() {
+    Fixture f;
+    f.controller.restoreQueue({"/r1.mp3", "/r2.ogg"}, 1, 30);
+
+    // Snapshot contract (SH-805 device finding, startup landing): the
+    // getters are INTENTIONALLY stale until the documented single re-read —
+    // the app wiring must drive refresh() ONCE after the restore and before
+    // any snapshot getter is read for the landing decision (SH-801), the
+    // cover data or the first 1 Hz persistence save.
+    QCOMPARE(f.vm.queueCount(), size_t(0));
+    QCOMPARE(f.vm.state(), PlaybackController::State::Idle);
+    QCOMPARE(f.vm.positionSeconds(), long(0));
+
+    f.vm.refresh();
+    QCOMPARE(f.vm.queueCount(), size_t(2));
+    QCOMPARE(f.vm.currentIndex(), size_t(1));
+    QCOMPARE(f.vm.currentEntry(), std::string("/r2.ogg"));
+    QCOMPARE(f.vm.state(), PlaybackController::State::Paused);
+    QCOMPARE(f.vm.positionSeconds(), long(30));
 }
 
 QTEST_MAIN(TestPlayerViewModel)

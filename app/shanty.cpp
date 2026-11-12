@@ -98,6 +98,13 @@ int main(int argc, char *argv[])
         controller.restoreQueue(restoredSession.paths, restoredSession.index,
                                 restoredSession.positionSeconds);
     }
+    // SH-805 (found during the device drive): the view-model's getters are
+    // SNAPSHOT getters (PlayerViewModel.h contract — they follow the last
+    // refresh()), and nothing has refreshed yet at startup. Drive the
+    // documented single re-read entry point ONCE here so the landing
+    // decision below — and the cover's startup data — see the restored
+    // session instead of the empty initial snapshot.
+    playerViewModel.refresh();
 
     // ---- view models (pure C++; callbacks are mirrored by the facades) ------
     NavigationViewModel navigationViewModel;
