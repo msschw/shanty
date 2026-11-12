@@ -104,6 +104,13 @@ void PlaylistViewModel::cancelFlow() {
 // ---- flow observation -------------------------------------------------------
 PlaylistFlowState PlaylistViewModel::flowState() const { return flowState_; }
 
+bool PlaylistViewModel::isDirty() const {
+    // SH-807 Phase A stub: the dirty contract is locked red-first in
+    // tests/playlist_vm; every target case must fail by assertion until
+    // Phase B implements the tracking.
+    return false;
+}
+
 const std::string& PlaylistViewModel::lastError() const { return lastError_; }
 
 // ---- mutation delegation (SH-304 facade) -------------------------------------
@@ -130,6 +137,12 @@ const std::vector<PlaylistEntry>& PlaylistViewModel::entries() const {
 
 long long PlaylistViewModel::totalDurationSeconds() const {
     return service_.totalDurationSeconds();
+}
+
+void PlaylistViewModel::confirmDiscard() {
+    // SH-807 Phase A stub: red-first in tests/playlist_vm (the guard flow
+    // lands in Phase B together with the dirty tracking).
+    notifyInvalid("unimplemented: confirmDiscard");
 }
 
 // ---- internal handlers ---------------------------------------------------------

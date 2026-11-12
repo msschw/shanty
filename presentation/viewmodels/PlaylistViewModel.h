@@ -57,12 +57,15 @@ namespace shanty {
 
 /// Import/export dialog flow of the playlist page.
 enum class PlaylistFlowState {
-    Idle,          // no flow open (initial state / after cancelFlow)
-    AwaitingFile,  // file dialog open (import or export target pending)
-    Importing,     // playlist file being imported (synchronous hop)
-    Exporting,     // playlist being exported (synchronous hop)
-    Done,          // last operation finished successfully
-    Failed,        // last operation failed (lastError() carries the reason)
+    Idle,             // no flow open (initial state / after cancelFlow)
+    AwaitingConfirm,  // SH-807 (UX-11): "discard unsaved edits?" prompt up
+                      // (beginImport while dirty; confirm → AwaitingFile,
+                      // cancel → Idle with the edits kept)
+    AwaitingFile,     // file dialog open (import or export target pending)
+    Importing,        // playlist file being imported (synchronous hop)
+    Exporting,        // playlist being exported (synchronous hop)
+    Done,             // last operation finished successfully
+    Failed,           // last operation failed (lastError() carries the reason)
 };
 
 class PlaylistViewModel {
@@ -97,8 +100,16 @@ public:
     /// Dismisses an open dialog or a finished result → Idle.
     void cancelFlow();
 
+    /// SH-807 (UX-11): confirms the "discard unsaved edits?" prompt
+    /// (AwaitingConfirm) → the pending import proceeds to the file-picker
+    /// flow (AwaitingFile). Valid ONLY from AwaitingConfirm.
+    void confirmDiscard();
+
     // ---- flow observation ---------------------------------------------------
     PlaylistFlowState flowState() const;
+    /// SH-807 (UX-11): true when entries were edited since the last
+    /// SUCCESSFUL import/export (edits the next import would destroy).
+    bool isDirty() const;
     /// Service error message of the last failed flow run; "" when none
     /// (cleared by the next beginImport/beginExport and by cancelFlow —
     /// a dismissed result drops the old error).

@@ -31,6 +31,7 @@ QString asQ(const std::string& s) { return QString::fromStdString(s); }
 const char* flowName(PlaylistFlowState state) {
     switch (state) {
         case PlaylistFlowState::Idle: return "Idle";
+        case PlaylistFlowState::AwaitingConfirm: return "AwaitingConfirm";
         case PlaylistFlowState::AwaitingFile: return "AwaitingFile";
         case PlaylistFlowState::Importing: return "Importing";
         case PlaylistFlowState::Exporting: return "Exporting";
@@ -155,6 +156,18 @@ private slots:
 
     // ---- full chain ----------------------------------------------------------
     void importEditExportChainPreservesMetadataRoundTrip();
+
+    // ---- SH-807 (UX-11): playlist dirty guard (red-first) --------------------
+    void freshViewModelIsNotDirty();
+    void dirtySetByMutationsThatChangeEntries();
+    void domainNoopMutationsDoNotSetDirty();
+    void deduplicateSetsDirtyOnlyWhenEntriesChange();
+    void beginImportWhileDirtyAwaitsConfirmAndConfirmDiscardProceeds();
+    void confirmDiscardOutsideAwaitingConfirmIsRejectedNoop();
+    void cancelFromAwaitingConfirmKeepsEditsAndDirty();
+    void beginExportWhileDirtyIsNotGuarded();
+    void successfulImportClearsDirtyFailedImportKeepsIt();
+    void successfulExportClearsDirtyFailedExportKeepsIt();
 };
 
 void TestPlaylistVM::freshViewModelIsIdleWithNoEvents() {
@@ -759,6 +772,186 @@ void TestPlaylistVM::importEditExportChainPreservesMetadataRoundTrip() {
                  517LL);
     }
     QCOMPARE(witnessFileBytes(f.exportQPath(), f.codec.nextSerialize.data), true);
+}
+
+// ---- SH-807 (UX-11): playlist dirty guard ---------------------------------------
+// UX-11: the single-playlist editor must not silently destroy work. The view
+// model tracks a dirty state (edits since the last successful import/export)
+// and guards beginImport: while dirty, the import first asks the user
+// (AwaitingConfirm — the shell pushes the "Discard unsaved edits?" prompt);
+// confirm proceeds to the file-picker flow, cancel keeps the edits. Export
+// is deliberately NOT guarded (exporting cannot destroy the working state —
+// it writes to a chosen target; a failed export keeps the edits dirty).
+
+void TestPlaylistVM::freshViewModelIsNotDirty() {
+    Fixture f;
+    QCOMPARE(f.vm.isDirty(), false);
+}
+
+void TestPlaylistVM::dirtySetByMutationsThatChangeEntries() {
+    Fixture f;
+    f.vm.add(pe("/a.mp3", "A", 10));
+    QCOMPARE(f.vm.isDirty(), true);  // add changed the entries
+
+    f.vm.add(pe("/b.ogg", "B", 20));
+    f.vm.moveEntry(1, 0);
+    QCOMPARE(f.vm.isDirty(), true);  // reorder is an edit
+
+    f.vm.removeAt(0);
+    QCOMPARE(f.vm.isDirty(), true);
+
+    f.vm.clear();
+    QCOMPARE(f.vm.isDirty(), true);  // clearing work is destroying work
+    QCOMPARE(f.vm.entryCount(), size_t(0));
+}
+
+void TestPlaylistVM::domainNoopMutationsDoNotSetDirty() {
+    Fixture f;
+    // Domain no-ops on a FRESH (clean) view model: the service fires
+    // onPlaylistChanged but nothing mutated — the dirty state must NOT
+    // treat them as edits.
+    f.vm.moveEntry(0, 0);   // same index (empty anyway)
+    f.vm.removeAt(0);       // out of range
+    f.vm.clear();           // already empty
+    QCOMPARE(f.vm.isDirty(), false);
+
+    // One real edit flips it; further no-ops leave it untouched.
+    f.vm.add(pe("/a.mp3", "A", 10));
+    QCOMPARE(f.vm.isDirty(), true);
+    f.vm.moveEntry(0, 0);
+    f.vm.removeAt(5);
+    QCOMPARE(f.vm.isDirty(), true);  // unchanged by the no-ops
+}
+
+void TestPlaylistVM::deduplicateSetsDirtyOnlyWhenEntriesChange() {
+    Fixture f;
+    // Duplicates present: dedupe changes the entries → an edit.
+    f.vm.add(pe("/a.mp3", "A", 10));
+    f.vm.add(pe("/a.mp3", "A", 10));
+    f.vm.deduplicate();
+    QCOMPARE(f.vm.entryCount(), size_t(1));
+    QCOMPARE(f.vm.isDirty(), true);
+
+    // Unique entries: dedupe is a domain no-op → the dirty state is NOT
+    // touched (a fresh fixture is clean, dedupe keeps it clean).
+    Fixture g;
+    g.vm.add(pe("/a.mp3", "A", 10));
+    g.vm.add(pe("/b.ogg", "B", 20));
+    g.vm.deduplicate();
+    QCOMPARE(g.vm.entryCount(), size_t(2));
+    QCOMPARE(g.vm.isDirty(), false);
+}
+
+void TestPlaylistVM::beginImportWhileDirtyAwaitsConfirmAndConfirmDiscardProceeds() {
+    Fixture f;
+    f.vm.add(pe("/a.mp3", "A", 10));
+
+    // Dirty → the import first asks (new AwaitingConfirm state).
+    f.vm.beginImport();
+    QCOMPARE(f.vm.flowState(), PlaylistFlowState::AwaitingConfirm);
+    QCOMPARE(f.vm.isDirty(), true);  // nothing discarded yet
+    QCOMPARE(f.vm.entryCount(), size_t(1));
+
+    // Confirm (discard) → proceeds to the file-picker flow (pending op
+    // preserved as Import — the picked file is imported normally).
+    f.codec.nextParse.playlist.add(pe("/imported.mp3", "Imp", 5));
+    f.seedImportFile();
+    f.vm.confirmDiscard();
+    QCOMPARE(f.vm.flowState(), PlaylistFlowState::AwaitingFile);
+    f.vm.confirmImport(f.importPath());
+    QCOMPARE(f.vm.flowState(), PlaylistFlowState::Done);
+    QCOMPARE(f.vm.entryCount(), size_t(1));
+    QCOMPARE(asQ(f.vm.entries().front().path), QString("/imported.mp3"));
+}
+
+void TestPlaylistVM::confirmDiscardOutsideAwaitingConfirmIsRejectedNoop() {
+    Fixture f;
+    f.vm.confirmDiscard();
+    QCOMPARE(f.vm.flowState(), PlaylistFlowState::Idle);
+    QCOMPARE(lastReason(f.invalidReasons),
+             QString("confirmDiscard: not awaiting confirm"));
+
+    // Also rejected from AwaitingFile (the discard prompt is up only in
+    // AwaitingConfirm; a confirm there would silently skip the guard).
+    f.vm.beginImport();
+    f.vm.confirmDiscard();
+    QCOMPARE(lastReason(f.invalidReasons),
+             QString("confirmDiscard: not awaiting confirm"));
+    QCOMPARE(f.vm.flowState(), PlaylistFlowState::AwaitingFile);
+}
+
+void TestPlaylistVM::cancelFromAwaitingConfirmKeepsEditsAndDirty() {
+    Fixture f;
+    f.vm.add(pe("/a.mp3", "A", 10));
+    f.vm.add(pe("/b.ogg", "B", 20));
+    f.vm.beginImport();  // dirty → AwaitingConfirm
+    f.vm.cancelFlow();
+
+    // Cancel = "keep the edits": back to Idle, entries intact, still dirty.
+    QCOMPARE(f.vm.flowState(), PlaylistFlowState::Idle);
+    QCOMPARE(f.vm.isDirty(), true);
+    QCOMPARE(f.vm.entryCount(), size_t(2));
+    QCOMPARE(f.invalidReasons.size(), size_t(0));  // a valid cancel: no toast
+}
+
+void TestPlaylistVM::beginExportWhileDirtyIsNotGuarded() {
+    Fixture f;
+    f.vm.add(pe("/a.mp3", "A", 10));
+
+    // Exporting cannot destroy the working state (it writes a chosen
+    // target) — a dirty playlist goes straight to the file-picker flow.
+    f.vm.beginExport();
+    QCOMPARE(f.vm.flowState(), PlaylistFlowState::AwaitingFile);
+}
+
+void TestPlaylistVM::successfulImportClearsDirtyFailedImportKeepsIt() {
+    Fixture f;
+    f.vm.add(pe("/a.mp3", "A", 10));
+
+    // Success path: the imported entries become the new baseline → clean.
+    f.codec.nextParse.playlist.add(pe("/imported.mp3", "Imp", 5));
+    f.seedImportFile();
+    f.vm.beginImport();  // dirty → AwaitingConfirm
+    f.vm.confirmDiscard();
+    f.vm.confirmImport(f.importPath());
+    QCOMPARE(f.vm.flowState(), PlaylistFlowState::Done);
+    QCOMPARE(f.vm.isDirty(), false);
+
+    // Failure path: the import replaced nothing (the edits are intact) —
+    // the working state stays dirty.
+    f.codec.nextParse = shanty::ParseResult{};  // default: parse errors empty?
+    // Note: a FAILED import is driven by an unreadable file (fails before
+    // the codec) — reuse the documented unreadable-file path.
+    f.vm.add(pe("/b.ogg", "B", 20));
+    QCOMPARE(f.vm.isDirty(), true);
+    f.vm.beginImport();  // dirty → AwaitingConfirm
+    f.vm.confirmDiscard();
+    f.vm.confirmImport("/nonexistent/missing.m3u");
+    QCOMPARE(f.vm.flowState(), PlaylistFlowState::Failed);
+    QCOMPARE(f.vm.isDirty(), true);  // the edits survive a failed import
+    QCOMPARE(f.vm.entryCount(), size_t(2));
+}
+
+void TestPlaylistVM::successfulExportClearsDirtyFailedExportKeepsIt() {
+    Fixture f;
+    f.vm.add(pe("/a.mp3", "A", 10));
+
+    // Success: the work is saved → clean.
+    f.codec.nextSerialize.status = shanty::SerializeResult::Status::Success;
+    f.codec.nextSerialize.data = "#EXTM3U\n";
+    f.vm.beginExport();
+    f.vm.confirmExport(f.exportPath());
+    QCOMPARE(f.vm.flowState(), PlaylistFlowState::Done);
+    QCOMPARE(f.vm.isDirty(), false);
+
+    // Failure: the work is NOT saved → still dirty.
+    f.vm.add(pe("/b.ogg", "B", 20));
+    f.codec.nextSerialize.status = shanty::SerializeResult::Status::Error;
+    f.codec.nextSerialize.errorMessage = "disk full";
+    f.vm.beginExport();
+    f.vm.confirmExport(f.exportPath());
+    QCOMPARE(f.vm.flowState(), PlaylistFlowState::Failed);
+    QCOMPARE(f.vm.isDirty(), true);
 }
 
 QTEST_MAIN(TestPlaylistVM)
