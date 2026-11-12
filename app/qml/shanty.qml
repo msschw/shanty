@@ -96,6 +96,9 @@ ApplicationWindow {
         case "confirmImport: export pending":
         case "confirmExport: import pending":
             return qsTr("A different playlist operation is still pending")
+        case "confirmDiscard: not awaiting confirm":
+            // SH-807: the discard prompt is only up in awaitingConfirm
+            return qsTr("No discard confirmation is pending")
         case "cancel: no open flow":
             return qsTr("No open playlist operation to cancel")
         case "cancel: flow in progress":

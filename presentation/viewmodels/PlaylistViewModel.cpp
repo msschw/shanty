@@ -31,7 +31,11 @@ void PlaylistViewModel::beginImport() {
         return;
     }
     lastError_.clear();
-    flowState_ = PlaylistFlowState::AwaitingFile;
+    // SH-807 (UX-11): a dirty playlist would be destroyed by the import —
+    // the flow first asks the user ("discard unsaved edits?"); confirm
+    // proceeds to the file-picker flow, cancel keeps the edits.
+    flowState_ = dirty_ ? PlaylistFlowState::AwaitingConfirm
+                        : PlaylistFlowState::AwaitingFile;
     pendingOp_ = PendingOp::Import;
     notifyFlowChanged();
 }
@@ -84,12 +88,15 @@ void PlaylistViewModel::confirmExport(const std::string& filePath) {
 
 void PlaylistViewModel::cancelFlow() {
     switch (flowState_) {
+        case PlaylistFlowState::AwaitingConfirm:
         case PlaylistFlowState::AwaitingFile:
         case PlaylistFlowState::Done:
         case PlaylistFlowState::Failed:
             lastError_.clear();  // a dismissed result drops the old error
             flowState_ = PlaylistFlowState::Idle;
             notifyFlowChanged();
+            // SH-807: the edits are untouched by the cancel (AwaitingConfirm
+            // cancel = "keep the edits" — dirty stays as it is).
             break;
         case PlaylistFlowState::Idle:
             notifyInvalid("cancel: no open flow");
@@ -101,32 +108,64 @@ void PlaylistViewModel::cancelFlow() {
     }
 }
 
+void PlaylistViewModel::confirmDiscard() {
+    if (flowState_ != PlaylistFlowState::AwaitingConfirm) {
+        notifyInvalid("confirmDiscard: not awaiting confirm");
+        return;
+    }
+    // The pending op is always Import here (AwaitingConfirm is reached
+    // only through beginImport) — proceed to the file-picker flow. The
+    // dirty state is NOT cleared yet: the discard takes effect only when
+    // the import actually replaces the entries (a failed import keeps
+    // the edits).
+    flowState_ = PlaylistFlowState::AwaitingFile;
+    notifyFlowChanged();
+}
+
 // ---- flow observation -------------------------------------------------------
 PlaylistFlowState PlaylistViewModel::flowState() const { return flowState_; }
 
-bool PlaylistViewModel::isDirty() const {
-    // SH-807 Phase A stub: the dirty contract is locked red-first in
-    // tests/playlist_vm; every target case must fail by assertion until
-    // Phase B implements the tracking.
-    return false;
-}
+bool PlaylistViewModel::isDirty() const { return dirty_; }
 
 const std::string& PlaylistViewModel::lastError() const { return lastError_; }
 
 // ---- mutation delegation (SH-304 facade) -------------------------------------
-void PlaylistViewModel::add(const PlaylistEntry& entry) { service_.add(entry); }
+// SH-807: each delegate snapshots the entries first and sets dirty_ only
+// when the service actually changed them (domain-noop filter).
+bool PlaylistViewModel::entriesChangedSince(
+    const std::vector<PlaylistEntry>& snapshot) const {
+    return service_.entries() != snapshot;
+}
+
+void PlaylistViewModel::add(const PlaylistEntry& entry) {
+    const auto before = service_.entries();
+    service_.add(entry);
+    if (entriesChangedSince(before)) dirty_ = true;
+}
 
 void PlaylistViewModel::moveEntry(std::size_t from, std::size_t to) {
+    const auto before = service_.entries();
     service_.moveEntry(from, to);
+    if (entriesChangedSince(before)) dirty_ = true;
 }
 
 void PlaylistViewModel::removeAt(std::size_t index) {
+    const auto before = service_.entries();
     service_.removeAt(index);
+    if (entriesChangedSince(before)) dirty_ = true;
 }
 
-void PlaylistViewModel::clear() { service_.clear(); }
+void PlaylistViewModel::clear() {
+    const auto before = service_.entries();
+    service_.clear();
+    if (entriesChangedSince(before)) dirty_ = true;
+}
 
-void PlaylistViewModel::deduplicate() { service_.deduplicate(); }
+void PlaylistViewModel::deduplicate() {
+    const auto before = service_.entries();
+    service_.deduplicate();
+    if (entriesChangedSince(before)) dirty_ = true;  // only on real change
+}
 
 // ---- playlist observation (passthrough) ---------------------------------------
 std::size_t PlaylistViewModel::entryCount() const { return service_.count(); }
@@ -137,12 +176,6 @@ const std::vector<PlaylistEntry>& PlaylistViewModel::entries() const {
 
 long long PlaylistViewModel::totalDurationSeconds() const {
     return service_.totalDurationSeconds();
-}
-
-void PlaylistViewModel::confirmDiscard() {
-    // SH-807 Phase A stub: red-first in tests/playlist_vm (the guard flow
-    // lands in Phase B together with the dirty tracking).
-    notifyInvalid("unimplemented: confirmDiscard");
 }
 
 // ---- internal handlers ---------------------------------------------------------
@@ -157,11 +190,13 @@ void PlaylistViewModel::notifyInvalid(const char* reason) {
 void PlaylistViewModel::finishImport(const ImportOutcome& outcome) {
     if (outcome.status == ImportOutcome::Status::Success) {
         lastError_.clear();
+        dirty_ = false;  // SH-807: the imported entries are the new baseline
         flowState_ = PlaylistFlowState::Done;
     } else {
         // Codec errors surface with the codec's first error message,
         // unreadable files with the service's own message (see
-        // PlaylistService.h decisions).
+        // PlaylistService.h decisions). The edits survive a failed import
+        // (nothing was replaced) — the dirty state stays (SH-807).
         lastError_ = outcome.errorMessage;
         flowState_ = PlaylistFlowState::Failed;
     }
@@ -171,10 +206,12 @@ void PlaylistViewModel::finishImport(const ImportOutcome& outcome) {
 void PlaylistViewModel::finishExport(const ExportOutcome& outcome) {
     if (outcome.status == ExportOutcome::Status::Success) {
         lastError_.clear();
+        dirty_ = false;  // SH-807: the work is saved
         flowState_ = PlaylistFlowState::Done;
     } else {
         lastError_ = outcome.errorMessage;
         flowState_ = PlaylistFlowState::Failed;
+        // A failed export saved nothing — the edits stay dirty (SH-807).
     }
     notifyFlowChanged();
 }

@@ -44,6 +44,22 @@
 //     change notification — preserving the service's ordering guarantee
 //     "mutated → then changed" (the callback observes the already-updated
 //     state, also for domain no-ops).
+//   - Dirty tracking (SH-807 / UX-11, "the editor must not silently destroy
+//     work"): dirty_ is true when the entries were edited since the last
+//     SUCCESSFUL import/export. It is set by the mutation delegates ONLY
+//     when the entries actually changed (snapshot compare — the service
+//     fires onPlaylistChanged for domain no-ops too: same-index move,
+//     out-of-range remove, clear on empty, dedupe on a unique list). It is
+//     cleared by a successful import (the imported entries are the new
+//     baseline) and by a successful export (the work is saved); a FAILED
+//     import/export keeps the edits intact — and dirty (nothing was
+//     replaced / saved). beginImport while dirty parks the flow in
+//     AwaitingConfirm ("discard unsaved edits?" — the shell pushes the
+//     prompt); confirmDiscard() proceeds to the file-picker flow
+//     (AwaitingFile, pending op preserved), cancelFlow() returns to Idle
+//     with the edits kept (and still dirty). beginExport is deliberately
+//     NOT guarded: exporting cannot destroy the working state (it writes a
+//     chosen target) — a dirty playlist goes straight to AwaitingFile.
 #pragma once
 
 #include <cstddef>
@@ -117,6 +133,8 @@ public:
 
     // ---- playlist mutation delegation (SH-304 facade, ORDERING "mutated →
     // changed" preserved; see header decisions) --------------------------------
+    // SH-807: each delegate snapshots the entries first and sets dirty_
+    // only when the service actually changed them.
     void add(const PlaylistEntry& entry);
     void moveEntry(std::size_t from, std::size_t to);
     void removeAt(std::size_t index);
@@ -135,11 +153,17 @@ private:
     PlaylistFlowState flowState_ = PlaylistFlowState::Idle;
     PendingOp pendingOp_ = PendingOp::Import;
     std::string lastError_;
+    bool dirty_ = false;  // SH-807 (UX-11): edits since the last successful
+                          // import/export (see the header decision notes)
 
     void notifyFlowChanged();
     void notifyInvalid(const char* reason);
     void finishImport(const ImportOutcome& outcome);
     void finishExport(const ExportOutcome& outcome);
+    /// SH-807: true when the service's entries differ from the snapshot the
+    /// caller took (the domain-noop filter for the dirty tracking — the
+    /// service fires onPlaylistChanged for no-ops too).
+    bool entriesChangedSince(const std::vector<PlaylistEntry>& snapshot) const;
 };
 
 }  // namespace shanty

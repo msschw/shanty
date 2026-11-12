@@ -37,9 +37,16 @@ Page {
     // Import flow: Idle/Done/Failed → AwaitingFile, then the dialog hands
     // the picked file to confirmImport() (the view model hops Importing →
     // Done|Failed synchronously and the shell toasts the outcome).
-    function pushImportPicker() {
-        playlist.beginImport()
-        if (playlist.flowState !== "awaitingFile") return
+    // SH-807 (UX-11): when the playlist is dirty, beginImport() parks the
+    // flow in AwaitingConfirm instead — the discard-confirmation dialog
+    // runs first; confirm proceeds to the same picker flow, cancel keeps
+    // the edits (cancelFlow back to Idle).
+    // SH-807 (UX-11): pushes the import file picker for the ALREADY open
+    // AwaitingFile flow (no beginImport — the flow state machine owns the
+    // pending op). Shared by the clean-entry path and the discard-confirm
+    // path (which must not re-enter beginImport: the playlist is still
+    // dirty until the import succeeds — that would re-ask forever).
+    function pushImportPickerForOpenFlow() {
         var picker = pageStack.push(Qt.resolvedUrl("FilePickerPage.qml"), {
             mode: "open",
             nameFilters: [".m3u", ".m3u8"],
@@ -52,6 +59,28 @@ Page {
         picker.cancelled.connect(function() {
             playlist.cancelFlow()
         })
+    }
+
+    function pushImportPicker() {
+        playlist.beginImport()
+        if (playlist.flowState === "awaitingConfirm") {
+            var confirm = pageStack.push(Qt.resolvedUrl("ConfirmPage.qml"), {
+                title: qsTr("Discard unsaved edits?"),
+                body: qsTr("Importing replaces the current playlist. " +
+                           "Unsaved edits will be lost.")
+            })
+            confirm.accepted.connect(function() {
+                playlist.confirmDiscard()  // → awaitingFile (op preserved)
+                if (playlist.flowState === "awaitingFile")
+                    pushImportPickerForOpenFlow()
+            })
+            confirm.cancelled.connect(function() {
+                playlist.cancelFlow()  // keep the edits (still dirty)
+            })
+            return
+        }
+        if (playlist.flowState !== "awaitingFile") return
+        pushImportPickerForOpenFlow()
     }
 
     function pushExportPicker() {

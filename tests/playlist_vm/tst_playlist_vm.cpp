@@ -397,19 +397,23 @@ void TestPlaylistVM::failedImportByCodecRecordsErrorAndKeepsPlaylist() {
     f.codec.nextParse = bad;
     f.seedImportFile();  // readable file: the codec IS called and errs
 
-    f.vm.beginImport();
+    f.vm.beginImport();  // dirty (seed add) → SH-807 asks first
+    QCOMPARE(f.vm.flowState(), PlaylistFlowState::AwaitingConfirm);
+    f.vm.confirmDiscard();
+    QCOMPARE(f.vm.flowState(), PlaylistFlowState::AwaitingFile);
     f.vm.confirmImport(f.importPath());
 
     // Documented: codec errors → Failed, service message = codec's first
     // error message; the playlist stays UNCHANGED (no change event fired).
     QCOMPARE(f.vm.flowState(), PlaylistFlowState::Failed);
     QCOMPARE(asQ(f.vm.lastError()), QString("not a playlist garbage"));
-    QCOMPARE(f.order.size(), size_t(4));
-    if (f.order.size() == 4) {
+    QCOMPARE(f.order.size(), size_t(5));
+    if (f.order.size() == 5) {
         QCOMPARE(asQ(f.order[0]), QString("changed:1"));  // from the seed add
-        QCOMPARE(asQ(f.order[1]), QString("flow:AwaitingFile"));
-        QCOMPARE(asQ(f.order[2]), QString("flow:Importing"));
-        QCOMPARE(asQ(f.order[3]), QString("flow:Failed"));
+        QCOMPARE(asQ(f.order[1]), QString("flow:AwaitingConfirm"));  // SH-807
+        QCOMPARE(asQ(f.order[2]), QString("flow:AwaitingFile"));
+        QCOMPARE(asQ(f.order[3]), QString("flow:Importing"));
+        QCOMPARE(asQ(f.order[4]), QString("flow:Failed"));
     }
     QCOMPARE(f.vm.entryCount(), size_t(1));
     if (f.vm.entryCount() == 1) {
@@ -833,13 +837,20 @@ void TestPlaylistVM::deduplicateSetsDirtyOnlyWhenEntriesChange() {
     QCOMPARE(f.vm.isDirty(), true);
 
     // Unique entries: dedupe is a domain no-op → the dirty state is NOT
-    // touched (a fresh fixture is clean, dedupe keeps it clean).
+    // touched. The clean baseline comes from a successful import (the
+    // documented dirty-clearing path), so the adds above don't leak in.
     Fixture g;
-    g.vm.add(pe("/a.mp3", "A", 10));
-    g.vm.add(pe("/b.ogg", "B", 20));
+    g.codec.nextParse.playlist.add(pe("/a.mp3", "A", 10));
+    g.codec.nextParse.playlist.add(pe("/b.ogg", "B", 20));
+    g.seedImportFile();
+    g.vm.beginImport();  // fresh view model: clean → straight to AwaitingFile
+    g.vm.confirmImport(g.importPath());
+    QCOMPARE(g.vm.flowState(), PlaylistFlowState::Done);
+    QCOMPARE(g.vm.isDirty(), false);  // successful import = clean baseline
+
     g.vm.deduplicate();
     QCOMPARE(g.vm.entryCount(), size_t(2));
-    QCOMPARE(g.vm.isDirty(), false);
+    QCOMPARE(g.vm.isDirty(), false);  // domain no-op does not dirty
 }
 
 void TestPlaylistVM::beginImportWhileDirtyAwaitsConfirmAndConfirmDiscardProceeds() {

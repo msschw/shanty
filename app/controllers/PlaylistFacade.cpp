@@ -31,6 +31,8 @@ void PlaylistFacade::confirmExport(const QString& filePath) {
     viewModel_.confirmExport(filePath.toStdString());
 }
 
+void PlaylistFacade::confirmDiscard() { viewModel_.confirmDiscard(); }
+
 void PlaylistFacade::cancelFlow() { viewModel_.cancelFlow(); }
 
 void PlaylistFacade::addEntry(const QString& path, const QString& title,
@@ -109,6 +111,8 @@ long long PlaylistFacade::totalDurationSeconds() const {
 
 QString PlaylistFacade::flowState() const {
     switch (viewModel_.flowState()) {
+        case PlaylistFlowState::AwaitingConfirm:
+            return QStringLiteral("awaitingConfirm");
         case PlaylistFlowState::AwaitingFile:
             return QStringLiteral("awaitingFile");
         case PlaylistFlowState::Importing:

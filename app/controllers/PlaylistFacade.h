@@ -52,6 +52,11 @@ public:
     Q_INVOKABLE void beginExport();
     Q_INVOKABLE void confirmImport(const QString& filePath);
     Q_INVOKABLE void confirmExport(const QString& filePath);
+    /// SH-807 (UX-11): confirms the "discard unsaved edits?" prompt
+    /// (flowState "awaitingConfirm") → the pending import proceeds to the
+    /// file-picker flow. Valid only from awaitingConfirm; rejections
+    /// surface through invalidCommand as usual.
+    Q_INVOKABLE void confirmDiscard();
     Q_INVOKABLE void cancelFlow();
 
     // ---- SH-304 mutation delegates (rejections are domain no-ops; each
