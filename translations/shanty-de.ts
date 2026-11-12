@@ -426,5 +426,9 @@
         <source>Playing playlist (%1 entries)</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Playback restored</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 </TS>

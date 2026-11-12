@@ -107,8 +107,11 @@ Page {
                 maximumValue: 1.0
                 stepSize: 0.0
                 value: player.progressFraction
-                valueText: formatTime(Math.round(seekBar.value *
-                                                 Math.max(player.durationSeconds, 0)))
+                // SH-805: the label reads the position snapshot directly —
+                // a freshly restored session has no engine duration yet
+                // (nothing has played), so value × duration would pin the
+                // label to 0:00 even though the restored position is real.
+                valueText: formatTime(Math.max(player.positionSeconds, 0))
                 // Enabled only with a known duration and live transport
                 // (the seek command is rejected without a duration anyway).
                 enabled: player.transportEnabled && player.durationSeconds > 0
