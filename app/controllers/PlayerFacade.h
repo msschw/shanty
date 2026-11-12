@@ -121,6 +121,10 @@ signals:
     /// SH-802: fired exactly once on queue-replace play success (the
     /// view-model onPlayStarted mirror; never on the rejection path).
     void playStarted();
+    /// SH-803 (UX-7): the sparse positive-feedback mirror — only
+    /// queue-building/restoring actions confirm (catalogue string in,
+    /// shell maps it to the user-facing toast).
+    void confirmed(const QString& message);
 
 private:
     PlayerViewModel& viewModel_;

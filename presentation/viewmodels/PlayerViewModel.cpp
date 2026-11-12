@@ -38,6 +38,18 @@ void PlayerViewModel::playFromPaths(const std::vector<std::string>& paths) {
     // (PlaybackController::loadQueue contract), then the explicit start.
     controller_.loadQueue(paths);
     controller_.play();
+    // SH-803 (UX-7): the queue-building action confirms (sparse rule —
+    // transport changes never do). Verbatim catalogue wording, count =
+    // queue size after the replace; fired BEFORE onPlayStarted so the
+    // toast exists when the navigation to the Player starts.
+    if (onConfirmed) {
+        const std::size_t count = paths.size();
+        const std::string message =
+            count == 1 ? "queue: built from playlist (1 entry)"
+                       : "queue: built from playlist (" +
+                             std::to_string(count) + " entries)";
+        onConfirmed(message.c_str());
+    }
     if (onPlayStarted) {
         onPlayStarted();  // success only — never on the rejection path
     }

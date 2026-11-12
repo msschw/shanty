@@ -22,6 +22,11 @@ PlayerFacade::PlayerFacade(PlayerViewModel& viewModel,
         emit invalidCommand(QString::fromUtf8(reason));
     };
     viewModel_.onPlayStarted = [this] { emit playStarted(); };
+    // SH-803: the confirmation channel shares the rejection channel's QML
+    // surface (shell toast); the catalogue string stays VM-owned.
+    viewModel_.onConfirmed = [this](const char* message) {
+        emit confirmed(QString::fromUtf8(message));
+    };
 
     if (controller_ != nullptr) {
         // Application-layer wiring (the view model is non-intrusive and

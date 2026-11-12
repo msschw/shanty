@@ -53,6 +53,17 @@ ApplicationWindow {
     // Map the documented view-model reason catalogue strings (kept verbatim
     // on the C++ side) to translated text; unknown strings are shown as-is.
     function reasonMessage(reason) {
+        // Confirmations (SH-803 / UX-7): the sparse positive-feedback
+        // channel — only queue-building/restoring actions confirm, and the
+        // count-bearing strings map by prefix (exact `case` cannot match a
+        // varying count).
+        var countMatch = /^queue: built from playlist \((\d+)/.exec(reason)
+        if (countMatch !== null) {
+            var count = parseInt(countMatch[1])
+            return count === 1 ? qsTr("Playing playlist (1 entry)")
+                               : qsTr("Playing playlist (%1 entries)")
+                                     .arg(count)
+        }
         switch (reason) {
         // NavigationViewModel (SH-801 revision: show() is the one sibling
         // command; the open* strings are gone)
@@ -167,6 +178,9 @@ ApplicationWindow {
     Connections {
         target: player
         onInvalidCommand: appWindow.notify(reasonMessage(reason))
+        // SH-803 (UX-7): confirmations reuse the same banner — the message
+        // arrives as a catalogue string and maps like the rejections do.
+        onConfirmed: appWindow.notify(reasonMessage(message))
         onSeekRejected: appWindow.notify(qsTr("Seeking is not available yet"))
     }
     Connections {
