@@ -61,6 +61,19 @@
 //   controller (the view-model never second-guesses it; invalid presses are
 //   documented controller no-ops), but the UI disables them from these flags.
 //
+// Queue-replace play command (SH-802 / UX-2, decision recorded here):
+//   playFromPaths(paths) is the ONE command behind "play a playlist": the
+//   single decision point that (a) rejects an EMPTY input with the stable
+//   catalogue string "play: playlist is empty" through onInvalidCommand —
+//   queue and playback state untouched — and (b) otherwise replaces the
+//   queue with the given paths in the given order (controller loadQueue:
+//   selection → index 0) and starts playing (controller play()). The given
+//   vector is COPIED into the queue (queue-snapshot semantics: later
+//   mutations of the caller's list never mutate the running queue). The
+//   command deliberately carries no navigation — the Playlist page decides
+//   to show the Player from the onPlayStarted hook (the facade's mirror).
+//   onPlayStarted fires ONLY on success (never on the rejection path).
+//
 // Fatal-error transport gate (SH-403 decision matrix observed):
 //   transportEnabled() == false exactly in the FATAL stop state:
 //   hasError() && state() == Stopped && lastErrorCode() is DecodeFailure or
@@ -101,6 +114,13 @@ public:
     std::function<void(long clampedSeconds)> onSeekRequested;
     /// Fired instead of onSeekRequested when the duration is unknown (≤ 0).
     std::function<void()> onSeekRejected;
+    /// Fired for a view-model command rejected as a documented no-op
+    /// (SH-802: the queue-replace play command's catalogue strings; mirrored
+    /// by PlayerFacade::invalidCommand like the controller's own rejections).
+    std::function<void(const char* reason)> onInvalidCommand;
+    /// Fired exactly once on queue-replace play success (SH-802; never on
+    /// the rejection path — the Playlist page navigates from its mirror).
+    std::function<void()> onPlayStarted;
     /// Fired exactly once at the end of every refresh().
     std::function<void()> onUpdated;
 
@@ -115,6 +135,11 @@ public:
     void seekTo(long targetSeconds);
     /// Recover after a fatal error: documented fresh-attempt play().
     void retryPlayback();
+    /// SH-802 (UX-2): the queue-replace play command — replaces the queue
+    /// with the given paths (playlist order, index 0) and starts playing;
+    /// empty input is a documented rejection ("play: playlist is empty",
+    /// state untouched). See the header decision notes.
+    void playFromPaths(const std::vector<std::string>& paths);
 
     // ---- the single re-read entry point (UI timer + state changes) ---------
     void refresh();

@@ -25,6 +25,17 @@ void PlayerViewModel::retryPlayback() {
     controller_.play();
 }
 
+void PlayerViewModel::playFromPaths(const std::vector<std::string>& paths) {
+    (void)paths;
+    // SH-802 Phase A stub: the queue-replace play contract is locked
+    // red-first in tests/player_vm; every target case must fail by
+    // assertion (with this reason observable through onInvalidCommand)
+    // until Phase B implements the real command.
+    if (onInvalidCommand) {
+        onInvalidCommand("unimplemented: playFromPaths");
+    }
+}
+
 void PlayerViewModel::seekTo(long targetSeconds) {
     // Seek rules (PlayerViewModel.h): clamp into [0, durationSeconds-of-
     // snapshot]; rejected (no clamp anchor) without a known duration. The

@@ -40,6 +40,8 @@ struct Fixture {
     std::vector<long> seekRequests;  ///< onSeekRequested log (clamped)
     int seekRejectedCalls = 0;       ///< onSeekRejected count
     int updatedCalls = 0;            ///< onUpdated count
+    std::vector<std::string> rejections;  ///< onInvalidCommand log (SH-802)
+    int playStartedCalls = 0;             ///< onPlayStarted count (SH-802)
 
     Fixture() {
         vm.onSeekRequested = [this](long clamped) {
@@ -47,6 +49,10 @@ struct Fixture {
         };
         vm.onSeekRejected = [this]() { ++seekRejectedCalls; };
         vm.onUpdated = [this]() { ++updatedCalls; };
+        vm.onInvalidCommand = [this](const char* reason) {
+            rejections.push_back(reason ? reason : "(null)");
+        };
+        vm.onPlayStarted = [this]() { ++playStartedCalls; };
     }
 
     /// Standard setup: three-entry queue loaded, not playing.
@@ -90,6 +96,12 @@ private slots:
     void fatalErrorDisablesTransportAndSurfacesError();
     void skippedUnsupportedNeverDisablesTransport();
     void retryAfterFatalErrorReEnablesTransport();
+
+    // ---- queue-replace play command (SH-802 / UX-2) ----------------------------
+    void playFromPathsReplacesQueueSelectsFirstAndPlays();
+    void playFromPathsSnapshotIsACopyOfTheGivenEntries();
+    void playFromPathsRejectsEmptyPlaylistWithoutTouchingState();
+    void playFromPathsFiresPlayStartedOnlyOnSuccess();
 
     // ---- hooks ----------------------------------------------------------------
     void refreshFiresOnUpdatedExactlyOncePerCall();
@@ -435,6 +447,72 @@ void TestPlayerViewModel::refreshFiresOnUpdatedExactlyOncePerCall() {
     f.vm.refresh();
     f.vm.refresh();
     QCOMPARE(f.updatedCalls, 3);
+}
+
+// ---- queue-replace play command (SH-802 / UX-2) ---------------------------------
+
+void TestPlayerViewModel::playFromPathsReplacesQueueSelectsFirstAndPlays() {
+    Fixture f;
+    f.vm.playFromPaths({"/p1.mp3", "/p2.ogg", "/p3.flac"});
+    f.vm.refresh();  // snapshot contract: getters follow the last refresh
+
+    // Playlist order → queue order; selection → index 0; playing.
+    QCOMPARE(f.vm.queueCount(), size_t(3));
+    QCOMPARE(f.vm.currentIndex(), size_t(0));
+    QCOMPARE(f.vm.state(), PlaybackController::State::Playing);
+    QCOMPARE(f.vm.currentEntry(), std::string("/p1.mp3"));
+    QCOMPARE(f.rejections.size(), size_t(0));
+}
+
+void TestPlayerViewModel::playFromPathsSnapshotIsACopyOfTheGivenEntries() {
+    Fixture f;
+    std::vector<std::string> entries{"/s1.mp3", "/s2.ogg"};
+    f.vm.playFromPaths(entries);
+    f.vm.refresh();
+    QCOMPARE(f.vm.queueCount(), size_t(2));
+
+    // Queue-snapshot semantics (UX-2): mutating the caller's list after the
+    // command never mutates the running queue.
+    entries.clear();
+    entries.push_back("/unrelated.mp3");
+    f.vm.refresh();
+    QCOMPARE(f.vm.queueCount(), size_t(2));
+    QCOMPARE(f.vm.currentEntry(), std::string("/s1.mp3"));
+}
+
+void TestPlayerViewModel::playFromPathsRejectsEmptyPlaylistWithoutTouchingState() {
+    Fixture f;
+    // Build a live session first: queue of 3, index 1, playing.
+    f.loadThreeEntries();
+    f.controller.jumpTo(1);
+    f.vm.refresh();
+    QCOMPARE(f.vm.state(), PlaybackController::State::Playing);
+    QCOMPARE(f.vm.currentIndex(), size_t(1));
+
+    f.vm.playFromPaths({});
+
+    // Documented rejection with the stable catalogue string...
+    QCOMPARE(f.rejections.size(), size_t(1));
+    QCOMPARE(QString::fromStdString(f.rejections.back()),
+             QString("play: playlist is empty"));
+    // ...and NO state change: queue, selection and transport untouched.
+    f.vm.refresh();
+    QCOMPARE(f.vm.queueCount(), size_t(3));
+    QCOMPARE(f.vm.currentIndex(), size_t(1));
+    QCOMPARE(f.vm.state(), PlaybackController::State::Playing);
+    QCOMPARE(f.playStartedCalls, 0);
+}
+
+void TestPlayerViewModel::playFromPathsFiresPlayStartedOnlyOnSuccess() {
+    Fixture f;
+    f.vm.playFromPaths({"/q1.mp3"});
+    QCOMPARE(f.playStartedCalls, 1);
+    QCOMPARE(f.rejections.size(), size_t(0));
+
+    // The rejection path must NOT fire onPlayStarted.
+    f.vm.playFromPaths({});
+    QCOMPARE(f.playStartedCalls, 1);
+    QCOMPARE(f.rejections.size(), size_t(1));
 }
 
 QTEST_MAIN(TestPlayerViewModel)
