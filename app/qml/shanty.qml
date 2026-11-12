@@ -108,6 +108,10 @@ ApplicationWindow {
         // PlayerViewModel via PlayerFacade (SH-802)
         case "play: playlist is empty":
             return qsTr("The playlist is empty")
+        // SH-805 (UX-4): the startup session-restore announcement (fired by
+        // the app wiring after the shell exists).
+        case "queue: restored":
+            return qsTr("Playback restored")
         case "next: end of queue":
             return qsTr("End of the queue")
         case "previous: start of queue":

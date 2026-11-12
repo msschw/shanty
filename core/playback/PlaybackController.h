@@ -57,6 +57,17 @@
 //           "stop: nothing playing"
 //         (togglePlayPause() on an empty queue routes through play() →
 //         "play: empty queue".)
+//   - Session restore (SH-805, UX-4): restoreQueue(paths, index, position)
+//     adopts a persisted session PAUSED at the clamped index and issues NO
+//     engine call that starts audio (restore-paused invariant — a restored
+//     session never starts audio on its own). Until the first play the
+//     persisted position is DISPLAY-ONLY (positionSeconds() reports it);
+//     the first play (resume/toggle on the fresh session, next/previous/
+//     jumpTo/play) drops the offset and reverts to the engine passthrough,
+//     as do stop() and loadQueue() (the restored session ended). A fresh
+//     restore's resume() issues engine.play (fresh attempt) — not
+//     engine.resume() — so the user's first tap on a restored session is
+//     audible. Empty paths → onInvalidCommand("restore: empty queue").
 //
 // This facade is pure C++ (D1): the QObject/QML wrapper is a later layer and
 // must hold a reference to this class only.
@@ -142,6 +153,12 @@ private:
     State state_ = State::Idle;
     PlaybackError lastError_;
     bool hasError_ = false;
+
+    // SH-805 (UX-4) restore state: a freshly restored session is PAUSED and
+    // has never played — positionSeconds() reports the persisted position
+    // (display-only) until the first play/stop/loadQueue drops the flag.
+    bool restoredFresh_ = false;
+    long restoredPositionSeconds_ = 0;
 
     void handleTrackFinished();
     void handleEngineError(const PlaybackError& error);

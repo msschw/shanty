@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cstddef>
+#include <chrono>
 #include <string>
 #include <vector>
 
@@ -68,10 +69,15 @@ public:
 private:
     void writePending();
 
+    /// Monotonic bookkeeping for the debounce window (measured against the
+    /// last actual disk write, not the last save attempt).
+    using Clock = std::chrono::steady_clock;
+
     std::string path_;              // resolved target file for this store
     int debounceMs_;
     bool hasPending_ = false;
     QueueState pending_;
+    Clock::time_point lastWrite_{};  // epoch (never written) initially
 };
 
 }  // namespace shanty

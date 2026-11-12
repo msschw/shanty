@@ -26,6 +26,7 @@ void PlaybackController::loadQueue(const std::vector<std::string>& paths) {
     }
     queue_.setEntries(paths);  // selection resets to index 0
     clearError();
+    restoredFresh_ = false;  // SH-805: a replaced queue is no restored session
     const bool changed = state_ != State::Idle;
     state_ = State::Idle;
     notifyState(changed);
@@ -33,13 +34,26 @@ void PlaybackController::loadQueue(const std::vector<std::string>& paths) {
 
 void PlaybackController::restoreQueue(const std::vector<std::string>& paths,
                                       std::size_t index, long positionSeconds) {
-    (void)paths;
-    (void)index;
-    (void)positionSeconds;
-    // SH-805 Phase A stub: the restore-paused contract is locked red-first
-    // in tests/playback_controller; every target case must fail by
-    // assertion (with this reason observable) until Phase B implements it.
-    invalidate("unimplemented: restoreQueue");
+    if (paths.empty()) {
+        // Documented rejection (SH-805): there is no persisted session to
+        // adopt — state untouched.
+        invalidate("restore: empty queue");
+        return;
+    }
+    if (state_ == State::Playing || state_ == State::Paused) {
+        engine_.stop();  // no stale sound under the restored session
+    }
+    queue_.setEntries(paths);
+    // Selection clamps into the restored queue (documented setCurrent rule).
+    queue_.setCurrent(index);
+    clearError();
+    // Restore-paused invariant: the session sits Paused and NOTHING is sent
+    // to the engine that starts audio — audibility requires a user command.
+    const bool changed = state_ != State::Paused;
+    state_ = State::Paused;
+    restoredFresh_ = true;
+    restoredPositionSeconds_ = positionSeconds;
+    notifyState(changed);
 }
 
 void PlaybackController::play() {
@@ -83,6 +97,14 @@ void PlaybackController::resume() {
         invalidate("resume: not playing");
         return;
     }
+    if (restoredFresh_) {
+        // SH-805: the restored session was never started — the engine has
+        // nothing to resume. The user's first resume is a fresh attempt of
+        // the restored entry (audible), which also drops the display-only
+        // restored position.
+        playCurrent();
+        return;
+    }
     state_ = State::Playing;
     engine_.resume();
     notifyState(true);
@@ -95,6 +117,7 @@ void PlaybackController::stop() {
     }
     state_ = State::Stopped;
     engine_.stop();
+    restoredFresh_ = false;  // SH-805: a stopped session reports engine truth
     notifyState(true);
     // The queue selection survives the stop; play() restarts the entry.
 }
@@ -145,6 +168,11 @@ std::size_t PlaybackController::currentIndex() const {
 }
 
 long PlaybackController::positionSeconds() const {
+    // SH-805: a freshly restored session has not played yet — the persisted
+    // position is display-only until the first play drops the offset.
+    if (restoredFresh_) {
+        return restoredPositionSeconds_;
+    }
     return engine_.positionSeconds();  // pure passthrough
 }
 
@@ -200,6 +228,7 @@ void PlaybackController::invalidate(const char* reason) {
 }
 
 void PlaybackController::playCurrent() {
+    restoredFresh_ = false;  // SH-805: the restored offset ends with a play
     const bool changed = state_ != State::Playing;
     state_ = State::Playing;
     engine_.play(queue_.current());

@@ -84,6 +84,11 @@ void PlayerFacade::playFromPaths(const QVariantList& paths) {
     viewModel_.playFromPaths(entries);
 }
 
+void PlayerFacade::notifySessionRestored() {
+    // SH-805: the SH-803-reserved confirmation wording, verbatim.
+    emit confirmed(QStringLiteral("queue: restored"));
+}
+
 void PlayerFacade::refresh() { viewModel_.refresh(); }
 
 void PlayerFacade::refreshFromController() { viewModel_.refresh(); }

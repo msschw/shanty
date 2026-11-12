@@ -108,10 +108,9 @@ std::string PlaybackQueue::current() const {
 }
 
 const std::vector<std::string>& PlaybackQueue::entries() const {
-    // SH-805 Phase A stub: the accessor contract is locked red-first in
-    // tests/playback_queue; Phase B returns the real stored paths.
-    static const std::vector<std::string> empty;
-    return empty;
+    // SH-805: the persistence snapshot source — the live stored paths in
+    // queue order (reference, no copy on read).
+    return entries_;
 }
 
 }  // namespace shanty

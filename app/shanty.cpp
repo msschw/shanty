@@ -52,6 +52,7 @@
 #include "adapters/m3u/M3uPlaylistCodec.h"
 #include "adapters/settings/QSettingsSettingsStore.h"
 #include "adapters/store/FileIndexStore.h"
+#include "adapters/store/QueueStateStore.h"  // SH-805 (UX-4) session store
 #include "core/playback/PlaybackController.h"
 #include "core/playback/PlaybackQueue.h"
 #include "core/services/LibraryService.h"
@@ -85,6 +86,18 @@ int main(int argc, char *argv[])
     PlaybackController controller(queue, engine);  // SH-403/404 transport
     QSettingsSettingsStore settingsStore;    // SH-D605-B0 (see header comment)
     AutoEqReader autoEqReader;               // SH-503 EqualizerAPO/CSV reader
+    QueueStateStore queueStore;              // SH-805 (UX-4) session store
+
+    // SH-805 (UX-4): adopt the persisted session (if any) BEFORE the landing
+    // decision below — a restored queue makes the startup landing the Player
+    // page (SH-801's promise), paused at the saved track (restore-paused
+    // invariant: restoring never starts audio on its own). A missing/corrupt
+    // store yields an empty state → no restore → Library landing (first run).
+    const QueueState restoredSession = queueStore.load();
+    if (!restoredSession.paths.empty()) {
+        controller.restoreQueue(restoredSession.paths, restoredSession.index,
+                                restoredSession.positionSeconds);
+    }
 
     // ---- view models (pure C++; callbacks are mirrored by the facades) ------
     NavigationViewModel navigationViewModel;
@@ -132,6 +145,23 @@ int main(int argc, char *argv[])
                          player->playFromPaths(paths);
                      });
 
+    // SH-805 (UX-4): the persistence trigger. The shell's 1 Hz refresh (plus
+    // every controller-driven refresh) fires PlayerFacade::updated; each
+    // tick saves a full snapshot — queue mutation, track change and position
+    // ticks are all covered by that cadence, and the store's trailing-write
+    // debounce coalesces the writes (the store always ends up with the
+    // latest snapshot; the destructor flushes a pending one on shutdown).
+    QObject::connect(player, &PlayerFacade::updated, player,
+                     [&queueStore, &controller, &queue, player]() {
+                         QueueState state;
+                         state.paths = queue.entries();
+                         state.index = queue.currentIndex();
+                         state.positionSeconds = controller.positionSeconds();
+                         state.transportState =
+                             player->stateString().toStdString();
+                         queueStore.save(state);
+                     });
+
     // ---- QML registration -----------------------------------------------------
     // Decision (SH-E6 Phase B): context properties on the view's ROOT
     // context, one per facade — instead of qmlRegisterSingletonType. Rationale:
@@ -157,6 +187,15 @@ int main(int argc, char *argv[])
 
     view->setSource(SailfishApp::pathToMainQml());
     view->show();
+
+    // SH-803/SH-805: the restored-session confirmation is a STARTUP
+    // announcement — the restore itself happened before any UI existed (the
+    // landing decision needs it), so the application layer announces it
+    // through the facade's confirmation channel only now that the shell's
+    // Connections exist (mapped to the toast by shanty.qml's reasonMessage).
+    if (!restoredSession.paths.empty()) {
+        player->notifySessionRestored();
+    }
 
     return application->exec();
 }

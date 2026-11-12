@@ -85,6 +85,11 @@ public:
     /// replaced in list order, index 0, playing — playStarted() fires only
     /// on success (navigation is the emitting page's decision).
     Q_INVOKABLE void playFromPaths(const QVariantList& paths);
+    /// SH-805: the STARTUP session-restore announcement — emits
+    /// confirmed("queue: restored") once the QML shell exists (the restore
+    /// itself happens before any UI, so the application layer announces it
+    /// through this facade method instead of a view-model command path).
+    void notifySessionRestored();
 
     /// The single re-read entry point for the QML Timer; also called by the
     /// controller's onStateChanged wiring (see the class comment).
