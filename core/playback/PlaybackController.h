@@ -68,6 +68,15 @@
 //     restore's resume() issues engine.play (fresh attempt) — not
 //     engine.resume() — so the user's first tap on a restored session is
 //     audible. Empty paths → onInvalidCommand("restore: empty queue").
+//   - Seek (SH-806, UX-10 — SH-D604-B1's deliberate no-op dies): seek(t)
+//     from Playing/Paused issues engine.seek(t) (absolute jump; the engine
+//     adapter owns backend specifics) and leaves the state unchanged; from
+//     Idle/Stopped it is a documented no-op with
+//     onInvalidCommand("seek: nothing playing") and no engine call. The
+//     VM-side clamp into the snapshot duration (SH-D604-B1 contract) is
+//     unchanged — the controller never re-clamps. A seek on a fresh
+//     restored session drops the restored display offset (the user moved
+//     the position deliberately; the engine passthrough takes over).
 //
 // This facade is pure C++ (D1): the QObject/QML wrapper is a later layer and
 // must hold a reference to this class only.
@@ -127,6 +136,15 @@ public:
     void previous();
     /// Selects (jumpTo) and plays the index; returns false when rejected.
     bool jumpTo(std::size_t index);
+
+    /// SH-806 (UX-10): the seek command — issues engine.seek(target) from a
+    /// live transport (Playing/Paused) and is a documented no-op otherwise
+    /// ("seek: nothing playing"). The SH-D604-B1 clamping contract stays in
+    /// the view-model (clamps into the snapshot duration before the command
+    /// surfaces); a seek during a fresh restored session drops the
+    /// display-only restored offset (the user's explicit position change
+    /// ends it). See the header decision notes.
+    void seek(long targetSeconds);
 
     // ---- observable state --------------------------------------------------
     State state() const;

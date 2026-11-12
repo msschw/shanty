@@ -96,6 +96,17 @@ void AudioEngineAdapter::stop() {
 #endif
 }
 
+void AudioEngineAdapter::seek(long positionSeconds) {
+    (void)positionSeconds;
+#ifdef HAVE_QTMULTIMEDIA
+    // SH-806 Phase A stub: the port unfreeze is locked red-first in
+    // tests/playback_controller (controller contract) — the device body
+    // (QMediaPlayer::setPosition, Qt 5.6 milliseconds API) lands in
+    // Phase B together with the docs/engine-adapter.md decision row.
+#endif
+    // Documented host stub variant: no-op (SH-D402-2).
+}
+
 long AudioEngineAdapter::positionSeconds() const {
     return positionSeconds_;  // 0 on the host stub (SH-D402-2)
 }

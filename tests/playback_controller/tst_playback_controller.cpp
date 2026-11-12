@@ -83,6 +83,13 @@ private slots:
     void restoreQueueEmptyPathsIsRejectedNoop();
     void restoreQueueIndexClampedToLast();
 
+    // ---- seek (SH-806 / UX-10, SH-D604-B1 no-op dies) -----------------------
+    void seekWhilePlayingIssuesEngineSeekAndKeepsState();
+    void seekWhilePausedIssuesEngineSeekAndKeepsState();
+    void seekWhileStoppedIsDocumentedNoop();
+    void seekWhileIdleIsDocumentedNoop();
+    void seekOnFreshRestoredSessionDropsTheRestoredOffset();
+
     // ---- engine passthrough ------------------------------------------------
     void positionAndDurationPassThroughFromEngine();
 };
@@ -486,6 +493,76 @@ void TestPlaybackController::restoreQueueIndexClampedToLast() {
     QCOMPARE(f.controller.currentIndex(), size_t(1));
     QCOMPARE(asQ(f.controller.currentEntry()), QString::fromLatin1("/b.ogg"));
     QCOMPARE(f.controller.state(), PlaybackController::State::Paused);
+}
+
+// ---- seek (SH-806 / UX-10, SH-D604-B1 no-op dies) -------------------------------
+
+void TestPlaybackController::seekWhilePlayingIssuesEngineSeekAndKeepsState() {
+    Fixture f;
+    f.controller.loadQueue({"/a.mp3", "/b.ogg"});
+    f.controller.play();
+    f.controller.seek(30);
+
+    // The command reaches the engine as an absolute jump; the transport
+    // state is unchanged (seek is not a play/pause/stop).
+    QCOMPARE(f.engine.seekCalls.size(), size_t(1));
+    QCOMPARE(f.engine.seekCalls.front(), long(30));
+    QCOMPARE(f.controller.state(), PlaybackController::State::Playing);
+    QCOMPARE(f.invalidReasons.size(), size_t(0));
+}
+
+void TestPlaybackController::seekWhilePausedIssuesEngineSeekAndKeepsState() {
+    Fixture f;
+    f.controller.loadQueue({"/a.mp3", "/b.ogg"});
+    f.controller.play();
+    f.controller.pause();
+    f.controller.seek(7);
+
+    QCOMPARE(f.engine.seekCalls.size(), size_t(1));
+    QCOMPARE(f.engine.seekCalls.front(), long(7));
+    QCOMPARE(f.controller.state(), PlaybackController::State::Paused);
+    // The engine position anchor followed the seek (display passthrough).
+    QCOMPARE(f.controller.positionSeconds(), long(7));
+}
+
+void TestPlaybackController::seekWhileStoppedIsDocumentedNoop() {
+    Fixture f;
+    f.controller.loadQueue({"/a.mp3"});
+    f.controller.play();
+    f.controller.stop();
+    f.controller.seek(15);
+
+    // Documented no-op (SH-806): nothing is playing — the engine is not
+    // touched and the rejection surfaces through the catalogue channel.
+    QCOMPARE(f.engine.seekCalls.size(), size_t(0));
+    QCOMPARE(f.invalidReasons.size(), size_t(1));
+    QCOMPARE(lastReason(f.invalidReasons), QString("seek: nothing playing"));
+    QCOMPARE(f.controller.state(), PlaybackController::State::Stopped);
+}
+
+void TestPlaybackController::seekWhileIdleIsDocumentedNoop() {
+    Fixture f;
+    f.controller.seek(4);
+
+    QCOMPARE(f.engine.seekCalls.size(), size_t(0));
+    QCOMPARE(f.invalidReasons.size(), size_t(1));
+    QCOMPARE(lastReason(f.invalidReasons), QString("seek: nothing playing"));
+    QCOMPARE(f.controller.state(), PlaybackController::State::Idle);
+}
+
+void TestPlaybackController::seekOnFreshRestoredSessionDropsTheRestoredOffset() {
+    Fixture f;
+    f.controller.restoreQueue({"/a.mp3", "/b.ogg"}, 0, 95);
+
+    // A fresh restored session is Paused → the seek is a valid transport
+    // command; the user's explicit position change ends the display-only
+    // restored offset (the engine passthrough takes over).
+    f.controller.seek(10);
+    QCOMPARE(f.engine.seekCalls.size(), size_t(1));
+    QCOMPARE(f.engine.seekCalls.front(), long(10));
+    QCOMPARE(f.controller.positionSeconds(), long(10));
+    QCOMPARE(f.controller.state(), PlaybackController::State::Paused);
+    QCOMPARE(f.invalidReasons.size(), size_t(0));
 }
 
 QTEST_MAIN(TestPlaybackController)

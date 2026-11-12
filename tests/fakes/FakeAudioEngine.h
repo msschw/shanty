@@ -20,6 +20,9 @@ public:
     int pauseCalls = 0;
     int resumeCalls = 0;
     int stopCalls = 0;
+    /// Targets handed to seek(), in call order (SH-806); each seek also
+    /// updates the position anchor (posSeconds), like a real backend jump.
+    std::vector<long> seekCalls;
 
     // ---- controllable passthrough state ------------------------------------
     long posSeconds = 0;
@@ -48,6 +51,13 @@ public:
     void stop() override {
         ++stopCalls;
         state_ = State::Idle;
+    }
+
+    void seek(long positionSeconds) override {
+        // SH-806: record the command and jump the position anchor — the
+        // observable contract a real backend implements (absolute jump).
+        seekCalls.push_back(positionSeconds);
+        posSeconds = positionSeconds;
     }
 
     long positionSeconds() const override { return posSeconds; }

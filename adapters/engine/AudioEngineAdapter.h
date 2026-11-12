@@ -90,6 +90,11 @@ public:
     void pause() override;
     void resume() override;
     void stop() override;
+    /// SH-806 (UX-10): absolute jump within the current entry. Device
+    /// variant: QMediaPlayer::setPosition (Qt 5.6-era milliseconds API).
+    /// Host stub variant: documented no-op (SH-D402-2 — nothing exists to
+    /// move; no callbacks, state untouched).
+    void seek(long positionSeconds) override;
     /// Position within the current entry, in seconds (0 on the host stub).
     long positionSeconds() const override;
     /// Duration of the current entry, Track::kUnknownDuration when unknown

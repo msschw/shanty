@@ -67,6 +67,9 @@ private slots:
     void urlRoundTripSurvivesSpacesAndPercentAndPunctuation();
     void urlRoundTripSurvivesNonAsciiUnicodeFilenames();
 
+    // ---- SH-806: seek primitive (host stub variant) -------------------------
+    void seekOnHostStubIsSafeAndFiresNoCallbacks();
+
 private:
     static QString q(const std::string& s) { return QString::fromStdString(s); }
 };
@@ -149,6 +152,20 @@ void TestEngineAdapter::urlRoundTripSurvivesNonAsciiUnicodeFilenames() {
         QCOMPARE(q(AudioEngineAdapter::toPlainPath(url)),
                  QString::fromStdString(path));
     }
+}
+
+void TestEngineAdapter::seekOnHostStubIsSafeAndFiresNoCallbacks() {
+    ConstructorProbe probe;
+    // SH-806 (SH-D402-2 host stub): nothing exists to move on the host —
+    // the seek is a safe documented no-op: no crash, no callbacks, state
+    // and position/duration observations unchanged.
+    probe.adapter.seek(42);
+    QCOMPARE(probe.finishFired, 0);
+    QCOMPARE(probe.errorFired, 0);
+    QCOMPARE(probe.adapter.state(), IAudioEngine::State::Idle);
+    QCOMPARE(probe.adapter.positionSeconds(), long(0));
+    QCOMPARE(probe.adapter.durationSeconds(),
+             long(shanty::Track::kUnknownDuration));
 }
 
 QTEST_MAIN(TestEngineAdapter)

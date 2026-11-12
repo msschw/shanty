@@ -159,6 +159,14 @@ bool PlaybackController::jumpTo(std::size_t index) {
     return true;
 }
 
+void PlaybackController::seek(long targetSeconds) {
+    (void)targetSeconds;
+    // SH-806 Phase A stub: the seek contract is locked red-first in
+    // tests/playback_controller; every target case must fail by assertion
+    // (with this reason observable) until Phase B implements the command.
+    invalidate("unimplemented: seek");
+}
+
 PlaybackController::State PlaybackController::state() const { return state_; }
 
 std::string PlaybackController::currentEntry() const { return queue_.current(); }
