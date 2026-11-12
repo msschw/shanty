@@ -71,6 +71,17 @@ private slots:
 
     // ---- landing decision (UX-1) ----------------------------------------------
     void landingPageFollowsQueuePresence();
+
+    // ---- SH-804 (UX-9): mini-player bar visibility inputs ----------------------
+    // Regression guard, green on arrival by design: the bar itself is a
+    // QML-only overlay (no new view-model logic — the ticket consumes the
+    // SH-801 show() contract). Phase A locks the facade-bound properties
+    // the bar's visibility rule consumes: currentPage() (hide exactly when
+    // the Player page is current) and depth() (the out-of-band-page guard
+    // leans on the VM's depth NEVER exceeding 2, so a picker/prompt pushed
+    // directly onto the QML page stack makes pageStack.depth EXCEED
+    // navigationFacade.depth and the bar hides).
+    void miniPlayerBarVisibilityInputsKeepTheirMeaning();
 };
 
 void TestNavigation::initialStackIsBareLibraryRootWithoutNotifications() {
@@ -314,6 +325,46 @@ void TestNavigation::landingPageFollowsQueuePresence() {
     // landing as an explicit startup push of the Player page.
     QCOMPARE(NavigationViewModel::landingPage(false), Page::Library);
     QCOMPARE(NavigationViewModel::landingPage(true), Page::Player);
+}
+
+// ---- SH-804 (UX-9): mini-player bar visibility inputs (regression guard) --------
+// The bar (QML-only, shanty.qml) shows iff queueCount > 0 AND
+// currentPage !== "player" AND pageStack.depth === navigationFacade.depth.
+// The queue presence is the player facade's own binding (locked in
+// tests/player_vm); this suite locks the navigation-side meanings the rule
+// reads — the page the facade reports and the depth relation.
+
+void TestNavigation::miniPlayerBarVisibilityInputsKeepTheirMeaning() {
+    Fixture f;
+
+    // Over the bare root (Library) the page condition HOLDS — the bar would
+    // be visible there exactly when a queue exists (first clause).
+    QCOMPARE(f.vm.currentPage(), Page::Library);
+    QCOMPARE(f.vm.depth(), size_t(1));
+
+    // On the Player page the bar MUST hide: currentPage() is the Player and
+    // the facade string mapping (app-side, "player") compares equal — the
+    // enum is the single source of the mapping, asserted here.
+    f.vm.show(Page::Player);
+    QCOMPARE(f.vm.currentPage(), Page::Player);
+    QCOMPARE(f.vm.depth(), size_t(2));
+
+    // Back on the root the bar condition holds again.
+    f.vm.back();
+    QCOMPARE(f.vm.currentPage(), Page::Library);
+    QCOMPARE(f.vm.depth(), size_t(1));
+
+    // The out-of-band-page guard: the VM depth NEVER exceeds 2 (locked
+    // across the show() chain below), so a page pushed directly onto the
+    // QML page stack (FilePickerPage/PromptPage — not facade commands)
+    // makes pageStack.depth EXCEED navigationFacade.depth and the bar
+    // hides over it. Any relaxation of the depth-2 invariant silently
+    // changes the bar's behaviour — hence this lock.
+    f.vm.show(Page::Settings);
+    f.vm.show(Page::Playlist);
+    f.vm.show(Page::Player);
+    QCOMPARE(f.vm.depth(), size_t(2));
+    QCOMPARE(f.vm.currentPage(), Page::Player);
 }
 
 QTEST_MAIN(TestNavigation)

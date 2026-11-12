@@ -116,6 +116,9 @@ private slots:
     // ---- session restore snapshot (SH-805 / UX-4) -------------------------------
     void restoredSessionFollowsTheSnapshotRefreshContract();
 
+    // ---- SH-804 (UX-9): mini-player bar content inputs (regression guard) ----
+    void miniPlayerBarContentInputsKeepTheirMeaning();
+
     // ---- hooks ----------------------------------------------------------------
     void refreshFiresOnUpdatedExactlyOncePerCall();
 };
@@ -595,6 +598,62 @@ void TestPlayerViewModel::restoredSessionFollowsTheSnapshotRefreshContract() {
     QCOMPARE(f.vm.currentEntry(), std::string("/r2.ogg"));
     QCOMPARE(f.vm.state(), PlaybackController::State::Paused);
     QCOMPARE(f.vm.positionSeconds(), long(30));
+}
+
+// ---- SH-804 (UX-9): mini-player bar content inputs (regression guard) -----------
+// Green on arrival by design: the bar is a QML-only overlay (shanty.qml)
+// consuming EXISTING snapshot getters — no new view-model logic (the ticket
+// consumes the SH-801 show() contract). This lock keeps the four content
+// bindings' meanings from drifting while the bar ships: currentEntry (the
+// title line), state (the transport word), progressFraction (the thin
+// progress line, position/duration with the documented zero/missing rules)
+// and queueCount (the first visibility clause).
+
+void TestPlayerViewModel::miniPlayerBarContentInputsKeepTheirMeaning() {
+    Fixture f;
+
+    // Empty queue: the bar's first clause is false → hidden regardless of
+    // page; the content getters are their documented empty shapes.
+    QCOMPARE(f.vm.queueCount(), size_t(0));
+    QCOMPARE(f.vm.currentEntry(), std::string(""));
+
+    f.engine.durSeconds = 60;
+    f.controller.loadQueue({"/music/long-sample.mp3"});
+    f.controller.play();
+
+    // Playing: the title is the full current entry path (the QML shell
+    // derives the filename — CoverPage's trackName() idiom), the state is
+    // the Playing word's enum source, the progress line maps 15 s of 60 s.
+    f.vm.refresh();
+    QCOMPARE(f.vm.queueCount(), size_t(1));
+    QCOMPARE(f.vm.currentEntry(), std::string("/music/long-sample.mp3"));
+    QCOMPARE(f.vm.state(), PlaybackController::State::Playing);
+    f.engine.posSeconds = 15;
+    f.vm.refresh();
+    QVERIFY(fracNear(f.vm.progressFraction(), 0.25));
+
+    // Paused: the bar keeps binding the same getters (state word changes,
+    // content and progress unchanged by the transport change).
+    f.controller.pause();
+    f.vm.refresh();
+    QCOMPARE(f.vm.state(), PlaybackController::State::Paused);
+    QCOMPARE(f.vm.currentEntry(), std::string("/music/long-sample.mp3"));
+    QVERIFY(fracNear(f.vm.progressFraction(), 0.25));
+
+    // Stopped at the queue end: queueCount stays > 0 (the bar's visibility
+    // rides queue presence, not the transport state); entry/progress keep
+    // their last meanings per the snapshot contract.
+    f.controller.stop();
+    f.vm.refresh();
+    QCOMPARE(f.vm.state(), PlaybackController::State::Stopped);
+    QCOMPARE(f.vm.queueCount(), size_t(1));
+
+    // Replaced with an empty queue: the bar hides again (first clause
+    // false) — loadQueue accepts an empty list (documented setEntries).
+    f.controller.loadQueue({});
+    f.vm.refresh();
+    QCOMPARE(f.vm.queueCount(), size_t(0));
+    QCOMPARE(f.vm.currentEntry(), std::string(""));
 }
 
 QTEST_MAIN(TestPlayerViewModel)
