@@ -98,13 +98,6 @@ int main(int argc, char *argv[])
         controller.restoreQueue(restoredSession.paths, restoredSession.index,
                                 restoredSession.positionSeconds);
     }
-    // SH-805 (found during the device drive): the view-model's getters are
-    // SNAPSHOT getters (PlayerViewModel.h contract — they follow the last
-    // refresh()), and nothing has refreshed yet at startup. Drive the
-    // documented single re-read entry point ONCE here so the landing
-    // decision below — and the cover's startup data — see the restored
-    // session instead of the empty initial snapshot.
-    playerViewModel.refresh();
 
     // ---- view models (pure C++; callbacks are mirrored by the facades) ------
     NavigationViewModel navigationViewModel;
@@ -113,6 +106,15 @@ int main(int argc, char *argv[])
     PlayerViewModel playerViewModel(controller, queue);
     // SettingsViewModel is owned by SettingsFacade (SH-D605-B1: the facade
     // reconstructs it over the same store as its documented reload path).
+
+    // SH-805 (found during the device drive): the view-model's getters are
+    // SNAPSHOT getters (PlayerViewModel.h contract — they follow the last
+    // refresh()), and nothing has refreshed yet at startup. Drive the
+    // documented single re-read entry point ONCE here — after the session
+    // restore above, before the facades — so the landing decision below
+    // (and the cover's startup data) see the restored session instead of
+    // the empty initial snapshot.
+    playerViewModel.refresh();
 
     // ---- facades (QML controllers; parented to the application) -------------
     // The facades mirror the view-model callbacks, so they must exist before
