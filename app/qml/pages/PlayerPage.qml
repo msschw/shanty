@@ -17,8 +17,8 @@ Page {
     // root — the guard prevents double-pops).
     onStatusChanged: {
         if (status === PageStatus.Inactive && pageStack.depth === 1 &&
-                navigation.depth > 1) {
-            navigation.back()
+                navigationFacade.depth > 1) {
+            navigationFacade.back()
         }
     }
 

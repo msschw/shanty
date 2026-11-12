@@ -1,8 +1,8 @@
 // SH-601 Phase B: application shell. The Silica ApplicationWindow hosts the
 // Library root page and the cover; the page stack is driven through the
-// NavigationFacade (navigation), whose view model owns the LIFO state
-// machine — pages push ONLY via successful navigation.open*() commands and
-// pop only through navigation.back() (synced from Silica's page pop in the
+// NavigationFacade (navigationFacade), whose view model owns the LIFO state
+// machine — pages push ONLY via successful navigationFacade.open*() commands
+// and pop only through navigationFacade.back() (synced from Silica's page pop
 // sibling pages).
 import QtQuick 2.0
 import Sailfish.Silica 1.0
@@ -124,7 +124,7 @@ ApplicationWindow {
     }
 
     Connections {
-        target: navigation
+        target: navigationFacade
         onInvalidNavigation: appWindow.notify(reasonMessage(reason))
     }
     Connections {

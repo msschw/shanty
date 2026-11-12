@@ -126,7 +126,15 @@ int main(int argc, char *argv[])
     // facades out of the QML import namespace (they are controllers, not
     // QML types).
     QQmlContext *rootContext = view->rootContext();
-    rootContext->setContextProperty(QStringLiteral("navigation"), navigation);
+    // Wave-8c: registered as "navigationFacade" — NOT "navigation". Silica's
+    // PageStack injects a per-page context property literally named
+    // "navigation" (the push's int PageNavigation style, 0 = NoNavigation)
+    // into every page pushed through pageStack.push(url), shadowing a
+    // root-context property of the same name; the LibraryPage (created from
+    // a Component) kept the real facade, which is why row taps on
+    // PlaylistPage read `navigation` as 0 on the device. App-owned name,
+    // no collision.
+    rootContext->setContextProperty(QStringLiteral("navigationFacade"), navigation);
     rootContext->setContextProperty(QStringLiteral("library"), library);
     rootContext->setContextProperty(QStringLiteral("playlist"), playlist);
     rootContext->setContextProperty(QStringLiteral("player"), player);

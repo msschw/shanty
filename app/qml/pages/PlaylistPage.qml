@@ -17,8 +17,8 @@ Page {
     // root — the guard prevents double-pops). Same pattern as PlayerPage.
     onStatusChanged: {
         if (status === PageStatus.Inactive && pageStack.depth === 1 &&
-                navigation.depth > 1) {
-            navigation.back()
+                navigationFacade.depth > 1) {
+            navigationFacade.back()
         }
     }
 
@@ -77,14 +77,21 @@ Page {
 
     function playEntry(index) {
         // Jump straight into this entry (selection → play, SH-604 bridge).
+        // No navigationFacade.openPlayer() here: the SH-601 contract rejects
+        // sibling pushes ("openPlayer: not from Library") — the row tap
+        // keeps the Playlist page on top while the cover shows the
+        // now-playing info. Wave-8c device drive caught two traps on the
+        // way: the facade API is jumpTo, not jumpToIndex, and the bare name
+        // `navigation` is unusable inside pages pushed through pageStack
+        // (Silica injects its own int context property with that name).
         var paths = []
         var entries = playlist.entries
         for (var i = 0; i < entries.length; ++i) paths.push(entries[i].path)
         player.loadQueue(paths)
         player.play()
         if (player.queueCount > 0) {
-            // loadQueue selects index 0; jumpTo selects AND plays.
-            player.jumpToIndex(index)
+            // loadQueue selects index 0; jumpTo(index) selects AND plays.
+            player.jumpTo(index)
         }
     }
 

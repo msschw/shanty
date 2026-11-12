@@ -28,8 +28,8 @@ Page {
         // SH-602 → SH-604 bridge: build the queue, then start playback.
         player.loadQueue(paths)
         player.play()
-        navigation.openPlayer()
-        if (navigation.depth > 1) {
+        navigationFacade.openPlayer()
+        if (navigationFacade.depth > 1) {
             pageStack.push(Qt.resolvedUrl("PlayerPage.qml"))
         }
     }
@@ -60,15 +60,15 @@ Page {
     }
 
     function pushPlayerPage() {
-        navigation.openPlayer()
-        if (navigation.depth > 1) {
+        navigationFacade.openPlayer()
+        if (navigationFacade.depth > 1) {
             pageStack.push(Qt.resolvedUrl("PlayerPage.qml"))
         }
     }
 
     function pushSettingsPage() {
-        navigation.openSettings()
-        if (navigation.depth > 1) {
+        navigationFacade.openSettings()
+        if (navigationFacade.depth > 1) {
             pageStack.push(Qt.resolvedUrl("SettingsPage.qml"))
         }
     }
@@ -98,7 +98,7 @@ Page {
                 // record); this item is its only entry point.
                 text: qsTr("Playlist")
                 onClicked: {
-                    navigation.openPlaylist()
+                    navigationFacade.openPlaylist()
                     pageStack.push(Qt.resolvedUrl("PlaylistPage.qml"))
                 }
             }
