@@ -34,18 +34,15 @@ Page {
         return qsTr("Total %1 min").arg(minutes)
     }
 
-    // Import flow: Idle/Done/Failed → AwaitingFile, then the dialog hands
-    // the picked file to confirmImport() (the view model hops Importing →
-    // Done|Failed synchronously and the shell toasts the outcome).
-    // SH-807 (UX-11): when the playlist is dirty, beginImport() parks the
-    // flow in AwaitingConfirm instead — the discard-confirmation dialog
-    // runs first; confirm proceeds to the same picker flow, cancel keeps
-    // the edits (cancelFlow back to Idle).
+    // Import flow: Idle/Done/Failed → AwaitingFile (or → AwaitingConfirm
+    // first when the playlist is dirty, SH-807 UX-11); the dialog/picker
+    // hands the picked file to confirmImport() (the view model hops
+    // Importing → Done|Failed synchronously and the shell toasts it).
     // SH-807 (UX-11): pushes the import file picker for the ALREADY open
     // AwaitingFile flow (no beginImport — the flow state machine owns the
-    // pending op). Shared by the clean-entry path and the discard-confirm
-    // path (which must not re-enter beginImport: the playlist is still
-    // dirty until the import succeeds — that would re-ask forever).
+    // pending op). Used by the clean-entry path and after the discard
+    // confirm (never re-enter beginImport: the playlist is still dirty
+    // until the import succeeds — that would re-ask forever).
     function pushImportPickerForOpenFlow() {
         var picker = pageStack.push(Qt.resolvedUrl("FilePickerPage.qml"), {
             mode: "open",
@@ -62,20 +59,39 @@ Page {
     }
 
     function pushImportPicker() {
+        // A rejected beginImport (flow already open — e.g. a double tap on
+        // the pulley item) preserves the flow state; pushing again would
+        // stack a DUPLICATE dialog page. Only proceed on a real
+        // Idle/Done/Failed → awaitingConfirm/awaitingFile transition.
+        var wasClosed = playlist.flowState === "idle" ||
+                        playlist.flowState === "done" ||
+                        playlist.flowState === "failed"
         playlist.beginImport()
+        if (!wasClosed) return
         if (playlist.flowState === "awaitingConfirm") {
             var confirm = pageStack.push(Qt.resolvedUrl("ConfirmPage.qml"), {
                 title: qsTr("Discard unsaved edits?"),
                 body: qsTr("Importing replaces the current playlist. " +
                            "Unsaved edits will be lost.")
             })
-            confirm.accepted.connect(function() {
-                playlist.confirmDiscard()  // → awaitingFile (op preserved)
-                if (playlist.flowState === "awaitingFile")
-                    pushImportPickerForOpenFlow()
+            confirm.confirmed.connect(function() {
+                // The VM advances to awaitingFile (op preserved). The
+                // dialog pops itself (ConfirmPage.accept); the picker
+                // pushes below, when the dialog is out of the stack.
+                playlist.confirmDiscard()
             })
-            confirm.cancelled.connect(function() {
+            confirm.dismissed.connect(function() {
                 playlist.cancelFlow()  // keep the edits (still dirty)
+            })
+            confirm.statusChanged.connect(function() {
+                // Push the picker deterministically AFTER the dialog left
+                // the stack — pushing inside the accepted handler raced
+                // the pop on device. The awaitingFile guard skips this
+                // for the cancel path (flow is idle there).
+                if (confirm.status === PageStatus.Inactive &&
+                        playlist.flowState === "awaitingFile") {
+                    pushImportPickerForOpenFlow()
+                }
             })
             return
         }
@@ -84,7 +100,13 @@ Page {
     }
 
     function pushExportPicker() {
+        // Same rejected-no-op guard as pushImportPicker (SH-807): a flow
+        // that is already open must not stack a second picker page.
+        var wasClosed = playlist.flowState === "idle" ||
+                        playlist.flowState === "done" ||
+                        playlist.flowState === "failed"
         playlist.beginExport()
+        if (!wasClosed) return
         if (playlist.flowState !== "awaitingFile") return
         var picker = pageStack.push(Qt.resolvedUrl("FilePickerPage.qml"), {
             mode: "save",
