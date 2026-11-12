@@ -119,6 +119,14 @@ private slots:
     // ---- SH-804 (UX-9): mini-player bar content inputs (regression guard) ----
     void miniPlayerBarContentInputsKeepTheirMeaning();
 
+    // ---- SH-808 (UX-6): read-only queue-entries snapshot (red-first) ---------
+    void freshViewModelExposesNoQueueEntries();
+    void queueEntriesMirrorTheQueueOrderAfterRefresh();
+    void queueEntriesAreStaleUntilTheNextRefresh();
+    void transportMovesHighlightWithoutReorderingEntries();
+    void queueEntriesTrackAQueueReplace();
+    void queueEntriesCountMatchesQueueCount();
+
     // ---- hooks ----------------------------------------------------------------
     void refreshFiresOnUpdatedExactlyOncePerCall();
 };
@@ -654,6 +662,98 @@ void TestPlayerViewModel::miniPlayerBarContentInputsKeepTheirMeaning() {
     f.vm.refresh();
     QCOMPARE(f.vm.queueCount(), size_t(0));
     QCOMPARE(f.vm.currentEntry(), std::string(""));
+}
+
+// ---- SH-808 (UX-6): read-only queue-entries snapshot -----------------------------
+// UX-6: the Player page lists the queue inline (current entry highlighted,
+// tap = jumpTo). The view model exposes a READ-ONLY entries snapshot —
+// refreshed by refresh() like every other snapshot getter (the shell's 1 Hz
+// timer is the re-read; between refreshes the snapshot is intentionally
+// stale). The list is queue-order (the highlight is an INDEX into it);
+// transport moves never reorder it. Read-only by decision: the Playlist
+// page stays the editing surface.
+
+void TestPlayerViewModel::freshViewModelExposesNoQueueEntries() {
+    Fixture f;
+    f.vm.refresh();
+    QCOMPARE(f.vm.queueEntries().empty(), true);
+    QCOMPARE(f.vm.queueCount(), size_t(0));
+}
+
+void TestPlayerViewModel::queueEntriesMirrorTheQueueOrderAfterRefresh() {
+    Fixture f;
+    f.loadThreeEntries();
+    f.vm.refresh();
+
+    QCOMPARE(f.vm.queueEntries().size(), size_t(3));
+    if (f.vm.queueEntries().size() == 3) {
+        QCOMPARE(f.vm.queueEntries()[0], std::string("/a.mp3"));
+        QCOMPARE(f.vm.queueEntries()[1], std::string("/b.ogg"));
+        QCOMPARE(f.vm.queueEntries()[2], std::string("/c.flac"));
+    }
+}
+
+void TestPlayerViewModel::queueEntriesAreStaleUntilTheNextRefresh() {
+    Fixture f;
+    f.loadThreeEntries();
+    f.vm.refresh();
+
+    // The shell timer contract: a queue change is NOT observable before the
+    // next refresh() — the snapshot getters are intentionally stale.
+    f.controller.loadQueue({"/x.wav"});
+    QCOMPARE(f.vm.queueEntries().size(), size_t(3));  // stale snapshot
+
+    f.vm.refresh();
+    QCOMPARE(f.vm.queueEntries().size(), size_t(1));
+    if (f.vm.queueEntries().size() == 1) {
+        QCOMPARE(f.vm.queueEntries().front(), std::string("/x.wav"));
+    }
+}
+
+void TestPlayerViewModel::transportMovesHighlightWithoutReorderingEntries() {
+    Fixture f;
+    f.loadThreeEntries();
+    f.vm.refresh();
+
+    f.vm.togglePlayPause();  // index 0 → playing
+    f.vm.next();             // index 1
+    f.vm.refresh();
+
+    // Highlight = index into the UNCHANGED list (tap = jumpTo anchor).
+    QCOMPARE(f.vm.currentIndex(), size_t(1));
+    QCOMPARE(f.vm.queueEntries().size(), size_t(3));
+    if (f.vm.queueEntries().size() == 3) {
+        QCOMPARE(f.vm.queueEntries()[1], std::string("/b.ogg"));  // highlighted
+        QCOMPARE(f.vm.queueEntries()[0], std::string("/a.mp3"));  // order kept
+    }
+}
+
+void TestPlayerViewModel::queueEntriesTrackAQueueReplace() {
+    Fixture f;
+    f.loadThreeEntries();
+    f.vm.refresh();
+
+    // SH-802 queue-replace play: new order after the refresh.
+    f.vm.playFromPaths({"/z.mp3", "/y.ogg"});
+    f.vm.refresh();
+
+    QCOMPARE(f.vm.queueEntries().size(), size_t(2));
+    if (f.vm.queueEntries().size() == 2) {
+        QCOMPARE(f.vm.queueEntries()[0], std::string("/z.mp3"));
+        QCOMPARE(f.vm.queueEntries()[1], std::string("/y.ogg"));
+    }
+    QCOMPARE(f.vm.currentIndex(), size_t(0));  // replacement starts at index 0
+}
+
+void TestPlayerViewModel::queueEntriesCountMatchesQueueCount() {
+    Fixture f;
+    f.loadThreeEntries();
+    f.vm.refresh();
+    QCOMPARE(f.vm.queueEntries().size(), f.vm.queueCount());
+
+    f.vm.next();
+    f.vm.refresh();
+    QCOMPARE(f.vm.queueEntries().size(), f.vm.queueCount());
 }
 
 QTEST_MAIN(TestPlayerViewModel)

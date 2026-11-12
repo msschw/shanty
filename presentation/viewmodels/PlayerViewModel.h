@@ -173,6 +173,13 @@ public:
     std::size_t queueCount() const;
     long positionSeconds() const;
     long durationSeconds() const;
+    /// SH-808 (UX-6): the queue's entries in queue order, as of the last
+    /// refresh() (same staleness contract as every snapshot getter — the
+    /// shell's 1 Hz timer is the re-read). READ-ONLY by decision: the
+    /// Playlist page stays the editing surface; the highlight for the
+    /// Player's inline queue list is currentIndex() as an index into this
+    /// list (transport moves never reorder it).
+    const std::vector<std::string>& queueEntries() const;
 
     // ---- derived (pure functions over the snapshot) ------------------------
     double progressFraction() const;
@@ -205,6 +212,7 @@ private:
     std::string errorMessage_;
     std::string errorPath_;
     bool hasError_ = false;
+    std::vector<std::string> queueEntries_;  // SH-808: queue-order snapshot
 };
 
 }  // namespace shanty
