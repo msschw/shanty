@@ -25,25 +25,6 @@ Page {
         }
     }
 
-    // SH-801 (UX-1): the Player page's pulley — every view reachable from
-    // here. "Library" unwinds to the root (the page pop back-syncs back()
-    // exactly like a back-swipe); "Playlist"/"Settings" are sibling
-    // switches through the one show() command (atomic replace).
-    PullDownMenu {
-        MenuItem {
-            text: qsTr("Playlist")
-            onClicked: Nav.showPage(navigationFacade, pageStack, "playlist")
-        }
-        MenuItem {
-            text: qsTr("Settings")
-            onClicked: Nav.showPage(navigationFacade, pageStack, "settings")
-        }
-        MenuItem {
-            text: qsTr("Library")
-            onClicked: pageStack.pop()
-        }
-    }
-
     function trackName(entry) {
         return entry.split("/").pop()
     }
@@ -58,6 +39,27 @@ Page {
     SilicaFlickable {
         anchors.fill: parent
         contentHeight: column.height
+
+        // SH-801 (UX-1): the Player page's pulley — every view reachable
+        // from here. "Library" unwinds to the root (the page pop back-syncs
+        // back() exactly like a back-swipe); "Playlist"/"Settings" are
+        // sibling switches through the one show() command (atomic replace).
+        // Lives INSIDE the SilicaFlickable (Silica requires it — a
+        // PullDownMenu as a direct Page child never attaches).
+        PullDownMenu {
+            MenuItem {
+                text: qsTr("Playlist")
+                onClicked: Nav.showPage(navigationFacade, pageStack, "playlist")
+            }
+            MenuItem {
+                text: qsTr("Settings")
+                onClicked: Nav.showPage(navigationFacade, pageStack, "settings")
+            }
+            MenuItem {
+                text: qsTr("Library")
+                onClicked: pageStack.pop()
+            }
+        }
 
         Column {
             id: column

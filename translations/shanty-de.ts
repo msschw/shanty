@@ -142,6 +142,18 @@
         <source>Try again</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Playlist</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Library</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>PlaylistPage</name>
@@ -184,6 +196,10 @@
     </message>
     <message>
         <source>Import a playlist or add library tracks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Play</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -270,10 +286,6 @@
 </context>
 <context>
     <name>shanty</name>
-    <message>
-        <source>Please go back to the library first</source>
-        <translation type="unfinished"></translation>
-    </message>
     <message>
         <source>Already on the library page</source>
         <translation type="unfinished"></translation>
@@ -396,6 +408,14 @@
     </message>
     <message>
         <source>Equalizer reset to flat</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Already on that page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The playlist is empty</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
