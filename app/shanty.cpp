@@ -135,13 +135,14 @@ int main(int argc, char *argv[])
     SettingsFacade *settings = new SettingsFacade(
         settingsStore, engine, autoEqReader, application.data());
 
-    // SH-D604-B1: the clamped seek command surfaces here; the engine has no
-    // seek primitive yet (frozen IAudioEngine port), so the hop is a
-    // documented no-op. Everything else of the seek contract (clamping,
-    // rejection, the seek bar's snapshot duration) already works.
-    QObject::connect(player, &PlayerFacade::seekRequested,
-                     player, [](int /*clampedSeconds*/) {
-                         // SH-D604-B1: no engine seek primitive yet.
+    // SH-806 (UX-10): the clamped seek command surfaces here; the port
+    // unfreeze routes it into the controller's seek command (engine adapter
+    // → QMediaPlayer::setPosition). The SH-D604-B1 clamping contract lives
+    // in the view-model; a seek without a known duration never reaches this
+    // point (onSeekRejected → "Seeking is not available yet").
+    QObject::connect(player, &PlayerFacade::seekRequested, player,
+                     [&controller](int clampedSeconds) {
+                         controller.seek(clampedSeconds);
                      });
 
     // SH-802 (UX-2): the "play a playlist" bridge — PlaylistFacade extracts

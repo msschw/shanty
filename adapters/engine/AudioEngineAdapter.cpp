@@ -97,14 +97,15 @@ void AudioEngineAdapter::stop() {
 }
 
 void AudioEngineAdapter::seek(long positionSeconds) {
-    (void)positionSeconds;
 #ifdef HAVE_QTMULTIMEDIA
-    // SH-806 Phase A stub: the port unfreeze is locked red-first in
-    // tests/playback_controller (controller contract) — the device body
-    // (QMediaPlayer::setPosition, Qt 5.6 milliseconds API) lands in
-    // Phase B together with the docs/engine-adapter.md decision row.
-#endif
+    // SH-806 (UX-10): absolute jump within the current entry. Qt 5.6-era
+    // API: setPosition(milliseconds). A call with nothing loaded is a
+    // documented no-op of the backend itself (no media → no position).
+    player_->setPosition(static_cast<qint64>(positionSeconds) * 1000);
+#else
     // Documented host stub variant: no-op (SH-D402-2).
+    (void)positionSeconds;
+#endif
 }
 
 long AudioEngineAdapter::positionSeconds() const {

@@ -160,11 +160,18 @@ bool PlaybackController::jumpTo(std::size_t index) {
 }
 
 void PlaybackController::seek(long targetSeconds) {
-    (void)targetSeconds;
-    // SH-806 Phase A stub: the seek contract is locked red-first in
-    // tests/playback_controller; every target case must fail by assertion
-    // (with this reason observable) until Phase B implements the command.
-    invalidate("unimplemented: seek");
+    if (state_ != State::Playing && state_ != State::Paused) {
+        // Documented no-op (SH-806): seek is a transport command — nothing
+        // is playing, so the engine is not touched.
+        invalidate("seek: nothing playing");
+        return;
+    }
+    // Absolute jump within the current entry; the state is unchanged (seek
+    // is not a play/pause/stop). A fresh restored session's display-only
+    // offset ends here: the user moved the position deliberately and the
+    // engine passthrough (already at the new anchor) takes over.
+    restoredFresh_ = false;
+    engine_.seek(targetSeconds);
 }
 
 PlaybackController::State PlaybackController::state() const { return state_; }

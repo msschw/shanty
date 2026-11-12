@@ -46,6 +46,7 @@ a non-host (`!onHost`) build (see *decisions* below).
 | SH-D402-3 | URL mapping (design D3): plain UTF-8 paths ⇄ `file://` via public static helpers `toLocalUrl()` / `toPlainPath()` — `QUrl::fromLocalFile`/`toLocalFile` semantics. Empty path → empty `QUrl`; non-local/empty `QUrl` → `""`. Path names with spaces, `%`, punctuation and non-ASCII Unicode round trip byte-exact; non-UTF-8 byte sequences are **unsupported** (D3 premise). |
 | SH-D402-4 | Error mapping (device only, QMediaPlayer → `PlaybackError`): `FormatError` → `SkippedUnsupported` (SH-403 skips + advances); `ResourceError`/`AccessDeniedError` → `DecodeFailure` (fatal for the entry); `ServiceMissingError`/network/other → `EngineFailure`. |
 | SH-D402-5 | Natural end-of-track: `onTrackFinished()` fires ONLY on `StoppedState + mediaStatus == EndOfMedia` — a plain `stop()`/pause/fast media switch also visits `StoppedState` and must not look like a finished track. |
+| SH-D806-1 | **Port unfreeze (SH-806, UX-10):** `IAudioEngine` gains `virtual void seek(long positionSeconds)` — the SH-D604-B1 deliberate no-op (the frozen port that shipped without a seek primitive) dies. Layering of the command: the VM keeps the SH-D604-B1 clamp contract (clamps into the snapshot duration; no known duration → `onSeekRejected`, no command); the controller issues `engine_.seek(t)` only from a live transport (Playing/Paused — otherwise the documented no-op `"seek: nothing playing"`); the adapter maps it 1:1 to `QMediaPlayer::setPosition(seconds * 1000)` (Qt 5.6-era milliseconds API) on the device and is a documented host stub no-op (SH-D402-2). A seek on a fresh restored session (SH-805) drops the display-only restored offset — the engine passthrough takes over. |
 
 Callbacks, not exceptions: every failure path flows through the
 `IAudioEngine` callbacks (`onTrackFinished`, `onError`); nothing in the
@@ -93,6 +94,14 @@ sample per supported format (MP3, OGG, FLAC), pushed to the device, e.g.
    → *RESULT: __*
 10. **Repeat a full pass after device reboot** (stateless adapter check —
     no engine-side persistence is assumed).
+    → *RESULT: __*
+11. **Seek (SH-806, UX-10)**: play a LONG sample (≥ 60 s — the 4 s tones
+    are impractical: they finish during screenshot round trips); drag/tap
+    the seek bar to a mid position → audible jump (content audibly changes
+    position), the position label follows (`player.positionSeconds`),
+    playback keeps playing (seek is not a play/pause/stop). Also verify a
+    seek on a *restored* session works (paused seek → resume plays from
+    the seeked position, no restart from 0).
     → *RESULT: __*
 
 ## Caveats for later tickets (from investigation)
