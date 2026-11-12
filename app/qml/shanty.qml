@@ -94,6 +94,9 @@ ApplicationWindow {
         case "previous: empty queue":
         case "jumpTo: empty queue":
             return qsTr("The queue is empty")
+        // PlayerViewModel via PlayerFacade (SH-802)
+        case "play: playlist is empty":
+            return qsTr("The playlist is empty")
         case "next: end of queue":
             return qsTr("End of the queue")
         case "previous: start of queue":

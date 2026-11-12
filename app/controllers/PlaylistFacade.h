@@ -64,6 +64,15 @@ public:
     Q_INVOKABLE void clear();
     Q_INVOKABLE void deduplicate();
 
+    // ---- SH-802 (UX-2): the "Play" bridge emitter ---------------------------
+    /// Extracts the entry paths C++-side (no QML logic) and emits
+    /// playRequested(paths) — the app wiring routes it to the player side's
+    /// queue-replace play command (PlayerFacade::playFromPaths), whose
+    /// empty-check is the single decision point. The EMPTY-PLAYLIST
+    /// rejection surfaces on the player side; this emitter carries no
+    /// decision of its own.
+    Q_INVOKABLE void requestPlay();
+
     // ---- file-dialog support (SH-D603-B1; QtCore side of the browsing) ----
     /// Directory listing for FilePickerPage: [{ name, path, isDir }],
     /// directories first, sorted by name. @param nameFilters suffix filters
@@ -91,6 +100,9 @@ signals:
     void entriesChanged();
     /// Rejected flow command (view-model onInvalidCommand mirror).
     void invalidCommand(const QString& reason);
+    /// SH-802: the "Play" request with the extracted entry paths (playlist
+    /// order); the app wiring routes it to PlayerFacade::playFromPaths.
+    void playRequested(const QVariantList& paths);
 
 private:
     PlaylistViewModel& viewModel_;

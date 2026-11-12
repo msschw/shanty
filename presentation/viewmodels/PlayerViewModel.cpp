@@ -26,13 +26,20 @@ void PlayerViewModel::retryPlayback() {
 }
 
 void PlayerViewModel::playFromPaths(const std::vector<std::string>& paths) {
-    (void)paths;
-    // SH-802 Phase A stub: the queue-replace play contract is locked
-    // red-first in tests/player_vm; every target case must fail by
-    // assertion (with this reason observable through onInvalidCommand)
-    // until Phase B implements the real command.
-    if (onInvalidCommand) {
-        onInvalidCommand("unimplemented: playFromPaths");
+    if (paths.empty()) {
+        // Documented rejection (SH-802 / UX-2): nothing to queue — the
+        // queue and the transport state stay untouched.
+        if (onInvalidCommand) {
+            onInvalidCommand("play: playlist is empty");
+        }
+        return;
+    }
+    // Playlist order → queue order, selection → index 0, no autoplay
+    // (PlaybackController::loadQueue contract), then the explicit start.
+    controller_.loadQueue(paths);
+    controller_.play();
+    if (onPlayStarted) {
+        onPlayStarted();  // success only — never on the rejection path
     }
 }
 

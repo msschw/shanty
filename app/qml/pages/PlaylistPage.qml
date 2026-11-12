@@ -5,6 +5,7 @@
 // simplest robust Sailfish flow for a bounded LIFO page list).
 import QtQuick 2.0
 import Sailfish.Silica 1.0
+import "../navigation.js" as Nav
 
 Page {
     id: page
@@ -101,7 +102,23 @@ Page {
         anchors.fill: parent
         model: playlist.entries
 
+        // SH-802 (UX-2): on queue-replace play success, surface the Player
+        // (sibling switch via the one show() command). The empty-playlist
+        // rejection surfaces through the shell's toast instead (no
+        // navigation on that path — onPlayStarted fires on success only).
+        Connections {
+            target: player
+            onPlayStarted: Nav.showPage(navigationFacade, pageStack, "player")
+        }
+
         PullDownMenu {
+            // SH-802 (UX-3 recorded order): Play first — the explicit
+            // "queue this playlist and play it" command; importing never
+            // auto-plays (UX-3 decision).
+            MenuItem {
+                text: qsTr("Play")
+                onClicked: playlist.requestPlay()
+            }
             MenuItem {
                 text: qsTr("Import playlist…")
                 onClicked: pushImportPicker()

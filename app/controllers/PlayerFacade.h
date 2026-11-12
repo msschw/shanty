@@ -79,6 +79,12 @@ public:
     /// Selects AND plays the queue index (false cases surface through
     /// invalidCommand as documented controller no-ops).
     Q_INVOKABLE void jumpTo(int index);
+    /// SH-802 (UX-2): the one queue-replace play command ("play a
+    /// playlist"): empty list rejected through invalidCommand
+    /// ("play: playlist is empty", state untouched); otherwise the queue is
+    /// replaced in list order, index 0, playing — playStarted() fires only
+    /// on success (navigation is the emitting page's decision).
+    Q_INVOKABLE void playFromPaths(const QVariantList& paths);
 
     /// The single re-read entry point for the QML Timer; also called by the
     /// controller's onStateChanged wiring (see the class comment).
@@ -112,6 +118,9 @@ signals:
     void seekRequested(int clampedSeconds);
     /// Fired instead of seekRequested when the duration is unknown.
     void seekRejected();
+    /// SH-802: fired exactly once on queue-replace play success (the
+    /// view-model onPlayStarted mirror; never on the rejection path).
+    void playStarted();
 
 private:
     PlayerViewModel& viewModel_;

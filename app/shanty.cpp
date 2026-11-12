@@ -122,6 +122,16 @@ int main(int argc, char *argv[])
                          // SH-D604-B1: no engine seek primitive yet.
                      });
 
+    // SH-802 (UX-2): the "play a playlist" bridge — PlaylistFacade extracts
+    // the entry paths and this connection routes them to the player side's
+    // queue-replace play command (the empty-check decision lives in
+    // PlayerViewModel::playFromPaths; the rejections surface through the
+    // player facade's invalidCommand → shell toast).
+    QObject::connect(playlist, &PlaylistFacade::playRequested, player,
+                     [player](const QVariantList& paths) {
+                         player->playFromPaths(paths);
+                     });
+
     // ---- QML registration -----------------------------------------------------
     // Decision (SH-E6 Phase B): context properties on the view's ROOT
     // context, one per facade — instead of qmlRegisterSingletonType. Rationale:

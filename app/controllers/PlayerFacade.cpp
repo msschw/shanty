@@ -15,6 +15,13 @@ PlayerFacade::PlayerFacade(PlayerViewModel& viewModel,
     };
     viewModel_.onSeekRejected = [this] { emit seekRejected(); };
     viewModel_.onUpdated = [this] { emit updated(); };
+    // SH-802: the queue-replace play command's own rejection/success hooks
+    // share the controller rejections' QML channels (invalidCommand → shell
+    // toast; playStarted → the emitting page's navigation).
+    viewModel_.onInvalidCommand = [this](const char* reason) {
+        emit invalidCommand(QString::fromUtf8(reason));
+    };
+    viewModel_.onPlayStarted = [this] { emit playStarted(); };
 
     if (controller_ != nullptr) {
         // Application-layer wiring (the view model is non-intrusive and
@@ -61,6 +68,15 @@ void PlayerFacade::jumpTo(int index) {
     if (controller_ != nullptr && index >= 0) {
         controller_->jumpTo(static_cast<std::size_t>(index));
     }
+}
+
+void PlayerFacade::playFromPaths(const QVariantList& paths) {
+    std::vector<std::string> entries;
+    entries.reserve(static_cast<std::size_t>(paths.size()));
+    for (const QVariant& path : paths) {
+        entries.push_back(path.toString().toStdString());
+    }
+    viewModel_.playFromPaths(entries);
 }
 
 void PlayerFacade::refresh() { viewModel_.refresh(); }

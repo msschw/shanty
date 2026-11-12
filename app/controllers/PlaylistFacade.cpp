@@ -91,6 +91,18 @@ int PlaylistFacade::entryCount() const {
     return static_cast<int>(viewModel_.entryCount());
 }
 
+void PlaylistFacade::requestPlay() {
+    // SH-802: extract the paths C++-side (playlist order) and hand them to
+    // the app wiring; the player side owns the empty-check decision.
+    QVariantList paths;
+    const std::vector<PlaylistEntry>& entries = viewModel_.entries();
+    paths.reserve(static_cast<int>(entries.size()));
+    for (const PlaylistEntry& entry : entries) {
+        paths.append(QString::fromStdString(entry.path));
+    }
+    emit playRequested(paths);
+}
+
 long long PlaylistFacade::totalDurationSeconds() const {
     return viewModel_.totalDurationSeconds();
 }
