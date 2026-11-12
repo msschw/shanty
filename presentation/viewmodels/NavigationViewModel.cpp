@@ -19,19 +19,37 @@ NavigationViewModel::NavigationViewModel()
 }
 
 void NavigationViewModel::show(Page page, const std::string& context) {
-    (void)page;
-    (void)context;
-    // SH-801 Phase A stub: the show() contract is locked red-first in
-    // tst_navigation; every target case must fail by assertion (with this
-    // reason observable through the hook) until Phase B implements the
-    // real sibling command.
-    invalidate("unimplemented: show");
-}
-
-NavigationViewModel::Page NavigationViewModel::landingPage(bool) {
-    // SH-801 Phase A stub: the landing decision is not implemented yet —
-    // always Library so the hasQueue=true target case fails by assertion.
-    return Page::Library;
+    if (page == Page::Library) {
+        // Documented no-op everywhere: the root is only ever reached
+        // through back().
+        invalidate("show: library is the root");
+        return;
+    }
+    const Page top = stack_.back();
+    if (top == page) {
+        // Documented no-op: the page is already on top — nothing to push
+        // or replace, state (incl. a Player anchor) untouched.
+        const std::string reason =
+            std::string("show: already showing ") + pageName(page);
+        invalidate(reason.c_str());
+        return;
+    }
+    if (top == Page::Player) {
+        // The anchor lives only while the Player page is up; an atomic
+        // replace away from the Player drops it (same rule as a pop).
+        playerContext_.clear();
+    }
+    if (top == Page::Library) {
+        stack_.push_back(page);  // LIFO push onto [Library]
+    } else {
+        stack_.back() = page;  // ATOMIC sibling replace: depth stays 2, no
+                               // intermediate [Library] state is exposed,
+                               // observers see exactly one transition.
+    }
+    if (page == Page::Player) {
+        playerContext_ = context;  // "" when called payloadless
+    }
+    notifyChanged();
 }
 
 void NavigationViewModel::back() {
@@ -64,6 +82,15 @@ const char* NavigationViewModel::pageName(Page page) {
             break;
     }
     return "library";
+}
+
+NavigationViewModel::Page NavigationViewModel::landingPage(bool hasQueue) {
+    // Documented decision (SH-801 / UX-1): the landing is the Player
+    // exactly when a queue exists at startup (session queue, or a restored
+    // one once queue persistence lands); the bare Library root otherwise.
+    // Pure decision, no state, no hooks — the shell applies it as an
+    // explicit startup push of the Player page over the fresh root.
+    return hasQueue ? Page::Player : Page::Library;
 }
 
 NavigationViewModel::Page NavigationViewModel::currentPage() const {

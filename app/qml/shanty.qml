@@ -1,9 +1,10 @@
-// SH-601 Phase B: application shell. The Silica ApplicationWindow hosts the
-// Library root page and the cover; the page stack is driven through the
-// NavigationFacade (navigationFacade), whose view model owns the LIFO state
-// machine — pages push ONLY via successful navigationFacade.open*() commands
-// and pop only through navigationFacade.back() (synced from Silica's page pop
-// sibling pages).
+// SH-601 Phase B / SH-801: application shell. The Silica ApplicationWindow
+// hosts the stable Library root page and the cover; the page stack is driven
+// through the NavigationFacade (navigationFacade), whose view model owns the
+// LIFO state machine — sibling pages are shown only via the facade's ONE
+// show(page) command (root push / atomic sibling replace, mirrored onto
+// pageStack by navigation.js) and pop only through navigationFacade.back()
+// (synced from Silica's page pop sibling pages).
 import QtQuick 2.0
 import Sailfish.Silica 1.0
 import "pages"
@@ -14,6 +15,20 @@ ApplicationWindow {
     initialPage: Component { LibraryPage { } }
     cover: Qt.resolvedUrl("cover/CoverPage.qml")
     allowedOrientations: defaultAllowedOrientations
+
+    // SH-801 (UX-1): player-first landing. The Library root is stable and
+    // always the initialPage; when the landing decision says "player" (a
+    // queue exists at startup — session queue, or a restored one once queue
+    // persistence lands), the Player page is pushed over the fresh root at
+    // startup: stack [Library, Player], recorded through the facade.
+    Component.onCompleted: {
+        if (navigationFacade.landing === "player") {
+            navigationFacade.show("player")
+            if (navigationFacade.depth > 1) {
+                pageStack.push(Qt.resolvedUrl("pages/PlayerPage.qml"))
+            }
+        }
+    }
 
     // SH-604 decision: PlayerViewModel exposes a snapshot that only refresh()
     // re-reads — the shell's 1 Hz timer drives position/progress updates for
@@ -39,10 +54,13 @@ ApplicationWindow {
     // on the C++ side) to translated text; unknown strings are shown as-is.
     function reasonMessage(reason) {
         switch (reason) {
-        // NavigationViewModel (SH-601)
-        case "openSettings: not from Library":
-        case "openPlayer: not from Library":
-            return qsTr("Please go back to the library first")
+        // NavigationViewModel (SH-801 revision: show() is the one sibling
+        // command; the open* strings are gone)
+        case "show: already showing player":
+        case "show: already showing settings":
+        case "show: already showing playlist":
+            return qsTr("Already on that page")
+        case "show: library is the root":
         case "back: already at the root":
             return qsTr("Already on the library page")
         // LibraryViewModel (SH-602)

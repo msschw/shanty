@@ -13,11 +13,11 @@ Page {
 
     // Keep the NavigationViewModel in sync with Silica's page stack: when
     // this sibling page is popped (back swipe), the view model's stack top
-    // must unwind as well (back() is only valid when a sibling sits on the
-    // root — the guard prevents double-pops). Same pattern as PlayerPage.
+    // must unwind as well. SH-801 race guard: the back() call fires only
+    // while the view model still shows THIS page on top (see PlayerPage).
     onStatusChanged: {
         if (status === PageStatus.Inactive && pageStack.depth === 1 &&
-                navigationFacade.depth > 1) {
+                navigationFacade.currentPage === "playlist") {
             navigationFacade.back()
         }
     }
@@ -77,13 +77,13 @@ Page {
 
     function playEntry(index) {
         // Jump straight into this entry (selection → play, SH-604 bridge).
-        // No navigationFacade.openPlayer() here: the SH-601 contract rejects
-        // sibling pushes ("openPlayer: not from Library") — the row tap
-        // keeps the Playlist page on top while the cover shows the
-        // now-playing info. Wave-8c device drive caught two traps on the
-        // way: the facade API is jumpTo, not jumpToIndex, and the bare name
-        // `navigation` is unusable inside pages pushed through pageStack
-        // (Silica injects its own int context property with that name).
+        // Deliberately NO navigation here (SH-601 row-tap contract, kept in
+        // the SH-801 revision): the row tap plays from this entry but keeps
+        // the Playlist page on top — the cover shows the now-playing info.
+        // Wave-8c device drive caught two traps on the way: the facade API
+        // is jumpTo, not jumpToIndex, and the bare name `navigation` is
+        // unusable inside pages pushed through pageStack (Silica injects
+        // its own int context property with that name).
         var paths = []
         var entries = playlist.entries
         for (var i = 0; i < entries.length; ++i) paths.push(entries[i].path)

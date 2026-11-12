@@ -5,6 +5,7 @@
 // controller-state wiring, per the PlayerViewModel snapshot contract.
 import QtQuick 2.0
 import Sailfish.Silica 1.0
+import "../navigation.js" as Nav
 
 Page {
     id: page
@@ -13,12 +14,33 @@ Page {
 
     // Keep the NavigationViewModel in sync with Silica's page stack: when
     // this sibling page is popped (back swipe), the view model's stack top
-    // must unwind as well (back() is only valid when a sibling sits on the
-    // root — the guard prevents double-pops).
+    // must unwind as well. SH-801 race guard: the back() call fires only
+    // while the view model still shows THIS page on top — during an atomic
+    // show() replace the view model already names the target page, so a
+    // deactivating replaced page can never pop the wrong sibling.
     onStatusChanged: {
         if (status === PageStatus.Inactive && pageStack.depth === 1 &&
-                navigationFacade.depth > 1) {
+                navigationFacade.currentPage === "player") {
             navigationFacade.back()
+        }
+    }
+
+    // SH-801 (UX-1): the Player page's pulley — every view reachable from
+    // here. "Library" unwinds to the root (the page pop back-syncs back()
+    // exactly like a back-swipe); "Playlist"/"Settings" are sibling
+    // switches through the one show() command (atomic replace).
+    PullDownMenu {
+        MenuItem {
+            text: qsTr("Playlist")
+            onClicked: Nav.showPage(navigationFacade, pageStack, "playlist")
+        }
+        MenuItem {
+            text: qsTr("Settings")
+            onClicked: Nav.showPage(navigationFacade, pageStack, "settings")
+        }
+        MenuItem {
+            text: qsTr("Library")
+            onClicked: pageStack.pop()
         }
     }
 

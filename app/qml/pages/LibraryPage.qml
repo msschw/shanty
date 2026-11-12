@@ -4,6 +4,7 @@
 // selection and the "play selection" queue-building flow (SH-604 bridge).
 import QtQuick 2.0
 import Sailfish.Silica 1.0
+import "../navigation.js" as Nav
 
 Page {
     id: page
@@ -28,10 +29,7 @@ Page {
         // SH-602 → SH-604 bridge: build the queue, then start playback.
         player.loadQueue(paths)
         player.play()
-        navigationFacade.openPlayer()
-        if (navigationFacade.depth > 1) {
-            pageStack.push(Qt.resolvedUrl("PlayerPage.qml"))
-        }
+        Nav.showPage(navigationFacade, pageStack, "player")
     }
 
     function pushFolderPicker() {
@@ -60,17 +58,11 @@ Page {
     }
 
     function pushPlayerPage() {
-        navigationFacade.openPlayer()
-        if (navigationFacade.depth > 1) {
-            pageStack.push(Qt.resolvedUrl("PlayerPage.qml"))
-        }
+        Nav.showPage(navigationFacade, pageStack, "player")
     }
 
     function pushSettingsPage() {
-        navigationFacade.openSettings()
-        if (navigationFacade.depth > 1) {
-            pageStack.push(Qt.resolvedUrl("SettingsPage.qml"))
-        }
+        Nav.showPage(navigationFacade, pageStack, "settings")
     }
 
     onStatusChanged: {
@@ -95,12 +87,10 @@ Page {
             MenuItem {
                 // Wave-8 follow-up: the SH-603 playlist page previously had
                 // no navigation path (see NavigationViewModel.h decision
-                // record); this item is its only entry point.
+                // record); this item is its only entry point. SH-801: the
+                // show() command routes it like every other sibling.
                 text: qsTr("Playlist")
-                onClicked: {
-                    navigationFacade.openPlaylist()
-                    pageStack.push(Qt.resolvedUrl("PlaylistPage.qml"))
-                }
+                onClicked: Nav.showPage(navigationFacade, pageStack, "playlist")
             }
             MenuItem {
                 text: qsTr("Rescan library")

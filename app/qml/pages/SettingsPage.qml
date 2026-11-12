@@ -13,11 +13,11 @@ Page {
 
     // Keep the NavigationViewModel in sync with Silica's page stack: when
     // this sibling page is popped (back swipe), the view model's stack top
-    // must unwind as well (back() is only valid when a sibling sits on the
-    // root — the guard prevents double-pops).
+    // must unwind as well. SH-801 race guard: the back() call fires only
+    // while the view model still shows THIS page on top (see PlayerPage).
     onStatusChanged: {
         if (status === PageStatus.Inactive && pageStack.depth === 1 &&
-                navigationFacade.depth > 1) {
+                navigationFacade.currentPage === "settings") {
             navigationFacade.back()
         }
     }

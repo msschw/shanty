@@ -97,8 +97,13 @@ int main(int argc, char *argv[])
     // ---- facades (QML controllers; parented to the application) -------------
     // The facades mirror the view-model callbacks, so they must exist before
     // any QML code runs; the graph below is therefore fully wired here.
+    // SH-801 (UX-1): the landing decision is made once from the player's
+    // startup queue state (a session queue — or, once SH-805 lands, a
+    // restored one). The shell applies the decision as an explicit startup
+    // push of the Player page over the fresh Library root.
     NavigationFacade *navigation = new NavigationFacade(
-        navigationViewModel, application.data());
+        navigationViewModel, playerViewModel.queueCount() > 0,
+        application.data());
     LibraryFacade *library = new LibraryFacade(
         libraryViewModel, application.data());
     PlaylistFacade *playlist = new PlaylistFacade(
