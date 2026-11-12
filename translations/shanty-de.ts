@@ -161,6 +161,11 @@
         <source>Library</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Queue (%1)</source>
+        <extracomment>%1 = queue length</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>PlaylistPage</name>
