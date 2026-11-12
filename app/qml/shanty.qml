@@ -233,4 +233,74 @@ ApplicationWindow {
         interval: 3000
         onTriggered: toast.opacity = 0
     }
+
+    // -----------------------------------------------------------------------
+    // SH-804 (UX-9): the mini-player bar — a slim overlay anchored above the
+    // bottom edge, z above the page stack (below the toast). QML-only: every
+    // input is an existing facade binding locked by the SH-804 Phase A
+    // guards. Visible iff (1) a queue is loaded (player.queueCount > 0),
+    // (2) the Player page is NOT current (navigationFacade.currentPage) and
+    // (3) no out-of-band page sits on top: pages pushed directly onto the
+    // page stack (FilePickerPage / PromptPage — never facade commands) make
+    // pageStack.depth EXCEED navigationFacade.depth (the view model's depth
+    // never exceeds 2 — locked in tests/navigation). Content: entry title,
+    // transport state word and the thin progress line, all riding the
+    // snapshot getters the shell's 1 Hz timer keeps fresh. Tap →
+    // navigationFacade.show("player") — the SH-801 one-sibling-command: push
+    // from the root, atomic replace from a sibling; the bar hides itself
+    // through the currentPage binding once the Player is up.
+    Rectangle {
+        id: playerBar
+
+        z: 500
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: Theme.itemSizeSmall
+        visible: player.queueCount > 0
+                 && navigationFacade.currentPage !== "player"
+                 && pageStack.depth === navigationFacade.depth
+        color: Qt.rgba(0.1, 0.1, 0.1, 0.9)
+
+        // Thin progress line along the top edge (progressFraction: 0..1).
+        Rectangle {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            height: Theme.paddingSmall
+            width: parent.width * player.progressFraction
+            color: Theme.highlightColor
+        }
+
+        Label {
+            id: playerBarTitle
+
+            anchors.left: parent.left
+            anchors.leftMargin: Theme.horizontalPageMargin
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width - 2 * Theme.horizontalPageMargin
+                   - playerBarState.implicitWidth - Theme.paddingMedium
+            text: player.currentEntry !== ""
+                      ? player.currentEntry.split("/").pop()
+                      : qsTr("Nothing playing")
+            font.pixelSize: Theme.fontSizeSmall
+            truncationMode: TruncationMode.Fade
+            color: Theme.primaryColor
+        }
+
+        Label {
+            id: playerBarState
+
+            anchors.right: parent.right
+            anchors.rightMargin: Theme.horizontalPageMargin
+            anchors.verticalCenter: parent.verticalCenter
+            text: player.state
+            font.pixelSize: Theme.fontSizeExtraSmall
+            color: Theme.secondaryColor
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: navigationFacade.show("player")
+        }
+    }
 }
