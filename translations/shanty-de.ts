@@ -2,6 +2,13 @@
 <!DOCTYPE TS>
 <TS version="2.1">
 <context>
+    <name>ConfirmPage</name>
+    <message>
+        <source>Discard</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>CoverPage</name>
     <message>
         <source>Nothing playing</source>
@@ -200,6 +207,14 @@
     </message>
     <message>
         <source>Play</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Discard unsaved edits?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Importing replaces the current playlist. Unsaved edits will be lost.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -432,6 +447,10 @@
     </message>
     <message>
         <source>Nothing playing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No discard confirmation is pending</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
