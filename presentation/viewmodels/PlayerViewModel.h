@@ -74,6 +74,22 @@
 //   to show the Player from the onPlayStarted hook (the facade's mirror).
 //   onPlayStarted fires ONLY on success (never on the rejection path).
 //
+// Confirmation channel (SH-803 / UX-7, decision recorded here):
+//   onConfirmed(message) is the SPARSE positive-feedback channel — it
+//   mirrors the rejection channel (stable catalogue string → shell toast)
+//   but only queue-building/restoring actions ever fire it; per-track
+//   transport changes (play/pause/next/previous/jumpTo on an existing
+//   queue) deliberately NEVER confirm (the Player page and cover already
+//   surface those). Producers so far: the SH-802 queue-replace play, whose
+//   success confirms with the verbatim catalogue string
+//     "queue: built from playlist (N entries)"
+//   (singular form "queue: built from playlist (1 entry)" for N == 1;
+//   the count is the queue size after the replace). Reserved wording for
+//   SH-805 (queue persistence): "queue: restored" — implemented with that
+//   ticket, same channel and sparse rule. The Library "Play selection"
+//   producer adopts the same channel/wording when its flow is next
+//   touched (SH-602 follow-up, not this ticket).
+//
 // Fatal-error transport gate (SH-403 decision matrix observed):
 //   transportEnabled() == false exactly in the FATAL stop state:
 //   hasError() && state() == Stopped && lastErrorCode() is DecodeFailure or
@@ -121,6 +137,11 @@ public:
     /// Fired exactly once on queue-replace play success (SH-802; never on
     /// the rejection path — the Playlist page navigates from its mirror).
     std::function<void()> onPlayStarted;
+    /// SH-803 / UX-7: the sparse positive-feedback channel (shell toast).
+    /// Only queue-building/restoring actions fire it — never per-track
+    /// transport changes; message is the stable catalogue string (see the
+    /// header decision notes for the locked wording).
+    std::function<void(const char* message)> onConfirmed;
     /// Fired exactly once at the end of every refresh().
     std::function<void()> onUpdated;
 

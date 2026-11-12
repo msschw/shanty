@@ -42,6 +42,7 @@ struct Fixture {
     int updatedCalls = 0;            ///< onUpdated count
     std::vector<std::string> rejections;  ///< onInvalidCommand log (SH-802)
     int playStartedCalls = 0;             ///< onPlayStarted count (SH-802)
+    std::vector<std::string> confirmations;  ///< onConfirmed log (SH-803)
 
     Fixture() {
         vm.onSeekRequested = [this](long clamped) {
@@ -53,6 +54,9 @@ struct Fixture {
             rejections.push_back(reason ? reason : "(null)");
         };
         vm.onPlayStarted = [this]() { ++playStartedCalls; };
+        vm.onConfirmed = [this](const char* message) {
+            confirmations.push_back(message ? message : "(null)");
+        };
     }
 
     /// Standard setup: three-entry queue loaded, not playing.
@@ -102,6 +106,12 @@ private slots:
     void playFromPathsSnapshotIsACopyOfTheGivenEntries();
     void playFromPathsRejectsEmptyPlaylistWithoutTouchingState();
     void playFromPathsFiresPlayStartedOnlyOnSuccess();
+
+    // ---- confirmation channel (SH-803 / UX-7) ----------------------------------
+    void playFromPathsConfirmsQueueBuiltVerbatim();
+    void playFromPathsConfirmationSingularForm();
+    void playFromPathsRejectionFiresNoConfirmation();
+    void perTrackTransportChangesNeverConfirm();
 
     // ---- hooks ----------------------------------------------------------------
     void refreshFiresOnUpdatedExactlyOncePerCall();
@@ -513,6 +523,54 @@ void TestPlayerViewModel::playFromPathsFiresPlayStartedOnlyOnSuccess() {
     f.vm.playFromPaths({});
     QCOMPARE(f.playStartedCalls, 1);
     QCOMPARE(f.rejections.size(), size_t(1));
+}
+
+// ---- confirmation channel (SH-803 / UX-7) ---------------------------------------
+
+void TestPlayerViewModel::playFromPathsConfirmsQueueBuiltVerbatim() {
+    Fixture f;
+    f.vm.playFromPaths({"/c1.mp3", "/c2.ogg", "/c3.flac"});
+
+    // UX-7: the queue-building action confirms with the verbatim catalogue
+    // string, count = queue size after the replace.
+    QCOMPARE(f.confirmations.size(), size_t(1));
+    QCOMPARE(QString::fromStdString(f.confirmations.back()),
+             QString("queue: built from playlist (3 entries)"));
+    // Success path unchanged: playStarted still fires, no rejection.
+    QCOMPARE(f.playStartedCalls, 1);
+    QCOMPARE(f.rejections.size(), size_t(0));
+}
+
+void TestPlayerViewModel::playFromPathsConfirmationSingularForm() {
+    Fixture f;
+    f.vm.playFromPaths({"/one.mp3"});
+    QCOMPARE(f.confirmations.size(), size_t(1));
+    QCOMPARE(QString::fromStdString(f.confirmations.back()),
+             QString("queue: built from playlist (1 entry)"));
+}
+
+void TestPlayerViewModel::playFromPathsRejectionFiresNoConfirmation() {
+    Fixture f;
+    f.vm.playFromPaths({});
+    // Sparse rule: the rejection path confirms NOTHING.
+    QCOMPARE(f.confirmations.size(), size_t(0));
+    QCOMPARE(f.rejections.size(), size_t(1));
+}
+
+void TestPlayerViewModel::perTrackTransportChangesNeverConfirm() {
+    Fixture f;
+    f.loadThreeEntries();
+    QCOMPARE(f.confirmations.size(), size_t(0));
+
+    // Per-track changes (SH-604 transport commands on an existing queue)
+    // never confirm — the Player page/cover already surface them (UX-7).
+    f.vm.togglePlayPause();
+    f.vm.togglePlayPause();
+    f.vm.next();
+    f.vm.previous();
+    f.controller.jumpTo(2);
+    f.vm.refresh();
+    QCOMPARE(f.confirmations.size(), size_t(0));
 }
 
 QTEST_MAIN(TestPlayerViewModel)
