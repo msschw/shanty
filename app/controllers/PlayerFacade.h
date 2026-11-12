@@ -39,6 +39,10 @@ class PlayerFacade : public QObject {
     Q_PROPERTY(QString currentEntry READ currentEntry NOTIFY updated)
     Q_PROPERTY(int currentIndex READ currentIndex NOTIFY updated)
     Q_PROPERTY(int queueCount READ queueCount NOTIFY updated)
+    /// SH-808 (UX-6): the queue's entries in queue order (plain paths), as
+    /// of the last refresh() — the read-only source for the Player page's
+    /// inline queue list; the highlight is currentIndex as an index into it.
+    Q_PROPERTY(QVariantList queueEntries READ queueEntries NOTIFY updated)
     Q_PROPERTY(int positionSeconds READ positionSeconds NOTIFY updated)
     /// Track::kUnknownDuration (-1) when unknown.
     Q_PROPERTY(int durationSeconds READ durationSeconds NOTIFY updated)
@@ -102,6 +106,7 @@ public:
     QString currentEntry() const;
     int currentIndex() const;
     int queueCount() const;
+    QVariantList queueEntries() const;
     int positionSeconds() const;
     int durationSeconds() const;
     double progressFraction() const;

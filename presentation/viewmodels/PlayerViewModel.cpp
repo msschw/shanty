@@ -91,9 +91,7 @@ void PlayerViewModel::refresh() {
     durationSeconds_ = controller_.durationSeconds();
     // SH-808: the queue-order entries snapshot (same staleness contract;
     // a copy — later queue mutations never mutate the published list).
-    // Phase A: kept out of the build until the contract is locked red
-    // (the stub getter below dominates); Phase B restores this line.
-    // queueEntries_ = queue_.entries();
+    queueEntries_ = queue_.entries();
 
     hasError_ = controller_.hasError();
     if (controller_.hasError()) {
@@ -116,11 +114,10 @@ void PlayerViewModel::refresh() {
 // ---- snapshot getters -------------------------------------------------------
 
 const std::vector<std::string>& PlayerViewModel::queueEntries() const {
-    // SH-808 Phase A stub: the queue-entries contract is locked red-first
-    // in tests/player_vm; every target case must fail by assertion until
-    // Phase B implements the snapshot.
-    static const std::vector<std::string> empty;
-    return empty;
+    // SH-808: the copy taken by the last refresh() — a plain member, so a
+    // later queue mutation (replace/remove) never mutates the published
+    // list; the next refresh() re-reads it. Read-only by decision.
+    return queueEntries_;
 }
 
 PlaybackController::State PlayerViewModel::state() const { return state_; }

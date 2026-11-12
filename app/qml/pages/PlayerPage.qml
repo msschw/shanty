@@ -1,8 +1,10 @@
 // SH-604 Phase B: Player page — now-playing metadata, transport controls,
-// seek bar and the error panel. Disabled states come from the view model's
-// derived flags (transportEnabled gate, canGoNext/canGoPrevious queue
-// edges); position/progress refresh through the shell's 1 Hz timer plus the
-// controller-state wiring, per the PlayerViewModel snapshot contract.
+// seek bar, the error panel and (SH-808 / UX-6) the read-only inline queue
+// list. Disabled states come from the view model's derived flags
+// (transportEnabled gate, canGoNext/canGoPrevious queue edges);
+// position/progress and the queue snapshot refresh through the shell's 1 Hz
+// timer plus the controller-state wiring, per the PlayerViewModel snapshot
+// contract.
 import QtQuick 2.0
 import Sailfish.Silica 1.0
 import "../navigation.js" as Nav
@@ -152,6 +154,53 @@ Page {
                     icon.source: "image://theme/icon-m-next"
                     enabled: player.canGoNext
                     onClicked: player.next()
+                }
+            }
+
+            // ---- queue list (SH-808 / UX-6) ---------------------------------------
+            // The read-only queue surface: entries in queue order (the facade's
+            // queueEntries snapshot), the current entry highlighted, a tap
+            // jumps playback to that entry. Read-only by decision — the
+            // Playlist page stays the editing surface. Embedded inside the
+            // page's SilicaFlickable, so the list is non-interactive
+            // (scrolling belongs to the page; taps still reach the rows) and
+            // its height is bounded by the row count.
+            Column {
+                visible: player.queueCount > 0
+                width: parent.width
+                spacing: Theme.paddingSmall
+
+                Label {
+                    x: Theme.horizontalPageMargin
+                    //: %1 = queue length
+                    text: qsTr("Queue (%1)").arg(player.queueCount)
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.secondaryHighlightColor
+                }
+
+                SilicaListView {
+                    width: parent.width
+                    height: contentHeight
+                    interactive: false
+                    quickScroll: false
+                    model: player.queueEntries
+
+                    delegate: BackgroundItem {
+                        width: ListView.view.width
+
+                        onClicked: player.jumpTo(index)
+
+                        Label {
+                            x: Theme.horizontalPageMargin
+                            width: parent.width - 2 * Theme.horizontalPageMargin
+                            text: trackName(modelData)
+                            font.pixelSize: Theme.fontSizeMedium
+                            truncationMode: TruncationMode.Fade
+                            color: index === player.currentIndex
+                                       ? Theme.highlightColor
+                                       : Theme.primaryColor
+                        }
+                    }
                 }
             }
 

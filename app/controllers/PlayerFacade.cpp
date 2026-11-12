@@ -119,6 +119,17 @@ int PlayerFacade::queueCount() const {
     return static_cast<int>(viewModel_.queueCount());
 }
 
+QVariantList PlayerFacade::queueEntries() const {
+    // SH-808: queue-order paths for the inline Player queue list
+    // (QString::fromStdString like every path snapshot on this facade).
+    QVariantList entries;
+    entries.reserve(static_cast<int>(viewModel_.queueEntries().size()));
+    for (const std::string& path : viewModel_.queueEntries()) {
+        entries.append(QString::fromStdString(path));
+    }
+    return entries;
+}
+
 int PlayerFacade::positionSeconds() const {
     return static_cast<int>(viewModel_.positionSeconds());
 }
