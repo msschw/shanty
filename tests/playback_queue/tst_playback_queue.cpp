@@ -24,6 +24,11 @@ private slots:
 
     // ---- SH-805: entries snapshot accessor ---------------------------------
     void entriesReturnsStoredPathsInOrder();
+
+    // ---- SH-809 (UX-8): queue append (library "Add to queue" primitive) ----
+    void appendToEmptyQueueSelectsTheAppendedEntry();
+    void appendPreservesOrderAndSelection();
+    void appendAfterQueueEndMakesTheAppendedEntryReachable();
 };
 
 void TestPlaybackQueue::setEntriesStartsAtFirst() {
@@ -131,6 +136,64 @@ void TestPlaybackQueue::entriesReturnsStoredPathsInOrder() {
     // Empty queue → empty list.
     queue.clear();
     QCOMPARE(queue.entries().size(), size_t(0));
+}
+
+// ---- SH-809 (UX-8): queue append ---------------------------------------------
+// The library row menu's "Add to queue" primitive: append never reorders,
+// never touches the selection, and (at the controller layer) never starts
+// audio — playing is the controller's decision. Documented invariants:
+// appending to an EMPTY queue selects the appended entry (index 0, like
+// setEntries); appending to a non-empty queue leaves the selection exactly
+// where it is.
+
+void TestPlaybackQueue::appendToEmptyQueueSelectsTheAppendedEntry() {
+    PlaybackQueue queue;
+    queue.append("/first.mp3");
+
+    QCOMPARE(queue.count(), size_t(1));
+    QCOMPARE(queue.currentIndex(), size_t(0));
+    QCOMPARE(QString::fromStdString(queue.current()),
+             QString::fromLatin1("/first.mp3"));
+    QCOMPARE(queue.entries().size(), size_t(1));
+}
+
+void TestPlaybackQueue::appendPreservesOrderAndSelection() {
+    PlaybackQueue queue;
+    queue.setEntries({"/a.mp3", "/b.ogg", "/c.flac"});
+    queue.setCurrent(1);  // "playing" the middle entry
+
+    queue.append("/d.wav");
+
+    // Pure append: the new entry lands at the END; the selection and the
+    // existing order are untouched.
+    QCOMPARE(queue.count(), size_t(4));
+    QCOMPARE(queue.currentIndex(), size_t(1));
+    QCOMPARE(QString::fromStdString(queue.current()),
+             QString::fromLatin1("/b.ogg"));
+    const std::vector<std::string>& entries = queue.entries();
+    QCOMPARE(entries.size(), size_t(4));
+    if (entries.size() == 4) {
+        QCOMPARE(QString::fromStdString(entries[3]),
+                 QString::fromLatin1("/d.wav"));
+        QCOMPARE(QString::fromStdString(entries[0]),
+                 QString::fromLatin1("/a.mp3"));
+    }
+}
+
+void TestPlaybackQueue::appendAfterQueueEndMakesTheAppendedEntryReachable() {
+    PlaybackQueue queue;
+    queue.setEntries({"/a.mp3", "/b.ogg"});
+    QVERIFY(queue.next());  // current at the LAST entry (stopped-at-end)
+
+    queue.append("/c.flac");
+
+    // The selection stays on the old last entry; the appended entry is now
+    // reachable through next() (stop-at-end no longer applies).
+    QCOMPARE(queue.currentIndex(), size_t(1));
+    QVERIFY(queue.next());
+    QCOMPARE(queue.currentIndex(), size_t(2));
+    QCOMPARE(QString::fromStdString(queue.current()),
+             QString::fromLatin1("/c.flac"));
 }
 
 QTEST_MAIN(TestPlaybackQueue)

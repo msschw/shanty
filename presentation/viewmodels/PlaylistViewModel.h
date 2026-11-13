@@ -146,6 +146,18 @@ public:
     const std::vector<PlaylistEntry>& entries() const;
     long long totalDurationSeconds() const;
 
+    // ---- SH-809 (UX-8): row context-menu command catalogue -------------------
+    /// The commands the QML pressAndHold menu offers for the row `index`
+    /// (the facade maps them to stable strings). Deliberately a PURE function
+    /// of the index validity: the bridges own the rejection semantics (a
+    /// rejected jump/remove is a documented no-op surfaced as a toast), so
+    /// the flow state and dirtiness do NOT filter the catalogue — a menu
+    /// that flips with the dialog state would be unpredictable.
+    ///   PlayFromHere → the row-tap play bridge (jumpTo; SH-802 family)
+    ///   Remove       → removeAt(index)
+    enum class RowCommand { PlayFromHere, Remove };
+    std::vector<RowCommand> rowCommands(std::size_t index) const;
+
 private:
     enum class PendingOp { Import, Export };
 

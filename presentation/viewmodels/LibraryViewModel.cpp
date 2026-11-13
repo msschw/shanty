@@ -152,6 +152,17 @@ std::vector<std::string> LibraryViewModel::selectionPaths() const {
     return paths;  // ascending listing order — queue-ready input for SH-604
 }
 
+// ---- SH-809 (UX-8): row context-menu command catalogue ------------------------
+
+std::vector<LibraryViewModel::RowCommand> LibraryViewModel::rowCommands(
+    std::size_t index) const {
+    // SH-809 Phase A stub: the catalogue contract is locked red-first in
+    // tests/library_vm; every target case must fail by assertion until
+    // Phase B implements it.
+    static_cast<void>(index);
+    return {};
+}
+
 void LibraryViewModel::persist() {
     // V4: immediate save — the mutation is durable before the method
     // returns; callers observe the event only after a successful save.

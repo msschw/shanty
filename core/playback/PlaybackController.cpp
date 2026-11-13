@@ -92,6 +92,13 @@ void PlaybackController::pause() {
     notifyState(true);
 }
 
+void PlaybackController::enqueue(const std::string& path) {
+    // SH-809 Phase A stub: the enqueue contract is locked red-first in
+    // tests/playback_controller; every target case must fail by assertion
+    // until Phase B implements it.
+    static_cast<void>(path);
+}
+
 void PlaybackController::resume() {
     if (state_ != State::Paused) {
         invalidate("resume: not playing");

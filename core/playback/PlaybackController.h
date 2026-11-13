@@ -124,6 +124,12 @@ public:
 
     /// (Re)starts playback of the current entry.
     void play();
+    /// SH-809 (UX-8): appends one path at the END of the current queue —
+    /// a PURE composition change: no engine call, no state transition, no
+    /// callback (the 1 Hz shell tick refreshes the UI and persists the
+    /// extended queue). Empty path → documented rejection
+    /// "enqueue: empty path" (queue and state untouched).
+    void enqueue(const std::string& path);
     /// Idle/Stopped → play, Playing → pause, Paused → resume.
     void togglePlayPause();
     void pause();

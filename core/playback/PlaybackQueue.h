@@ -30,6 +30,10 @@ public:
 
     /// Clamps into [0, size-1]; no-op on an empty queue.
     void setCurrent(std::size_t index);
+    /// SH-809 (UX-8): appends one entry at the END of the queue (never
+    /// reorders, never touches the selection — a pure composition change;
+    /// appending to an EMPTY queue selects the appended entry, index 0).
+    void append(const std::string& path);
     bool next();
     bool previous();
     bool jumpTo(std::size_t index);

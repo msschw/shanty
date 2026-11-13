@@ -178,6 +178,17 @@ long long PlaylistViewModel::totalDurationSeconds() const {
     return service_.totalDurationSeconds();
 }
 
+// ---- SH-809 (UX-8): row context-menu command catalogue ------------------------
+
+std::vector<PlaylistViewModel::RowCommand> PlaylistViewModel::rowCommands(
+    std::size_t index) const {
+    // SH-809 Phase A stub: the catalogue contract is locked red-first in
+    // tests/playlist_vm; every target case must fail by assertion until
+    // Phase B implements it.
+    static_cast<void>(index);
+    return {};
+}
+
 // ---- internal handlers ---------------------------------------------------------
 void PlaylistViewModel::notifyFlowChanged() {
     if (onFlowChanged) onFlowChanged();

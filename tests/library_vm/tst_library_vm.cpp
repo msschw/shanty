@@ -94,6 +94,11 @@ private slots:
     void setSelectedTogglesSingleIndices();
     void setSelectedOutOfRangeIsRejected();
     void reloadClearsSelection();
+
+    // ---- SH-809 (UX-8): row context-menu command catalogue (red-first) -------
+    void rowCommandsOfferPlayAndAddToQueue();
+    void rowCommandsOnOutOfRangeIndexAreEmpty();
+    void rowCommandsAreIndependentOfSelectionState();
 };
 
 // ---- V6 config lifecycle ------------------------------------------------------
@@ -470,6 +475,49 @@ void TestLibraryVm::reloadClearsSelection() {
     QCOMPARE(indices(v.vm.selection()), QList<int>());
     QCOMPARE(qList(v.vm.selectionPaths()), QStringList());
     QCOMPARE(qList(v.vm.tracks()), (QStringList{"/music/a.mp3", "/music/b.flac"}));
+}
+
+// ---- SH-809 (UX-8): row context-menu command catalogue ------------------------
+// The pressAndHold menu content is a VIEW-MODEL decision (host-tested): a
+// library track row offers Play (the SH-802 queue-replace bridge with just
+// this path — plays the track NOW) and AddToQueue (the non-destructive
+// queue append). The catalogue is a pure function of the index validity;
+// selection state does not filter it (the selection buttons stay the
+// discoverable surface; the menu is the per-row shortcut).
+
+void TestLibraryVm::rowCommandsOfferPlayAndAddToQueue() {
+    Vm v{LibraryConfig(), toVector({"/music/a.mp3", "/music/b.flac"})};
+    v.vm.scan();
+
+    const auto commands = v.vm.rowCommands(0);
+    QCOMPARE(commands.size(), size_t(2));
+    if (commands.size() == 2) {
+        QCOMPARE(commands[0], LibraryViewModel::RowCommand::Play);
+        QCOMPARE(commands[1], LibraryViewModel::RowCommand::AddToQueue);
+    }
+}
+
+void TestLibraryVm::rowCommandsOnOutOfRangeIndexAreEmpty() {
+    Vm v{LibraryConfig(), toVector({"/music/a.mp3"})};
+    v.vm.scan();
+
+    // No row → no menu: the empty catalogue is the QML "do not open" signal.
+    QCOMPARE(v.vm.rowCommands(1).empty(), true);
+    QCOMPARE(v.vm.rowCommands(99).empty(), true);
+}
+
+void TestLibraryVm::rowCommandsAreIndependentOfSelectionState() {
+    Vm v{LibraryConfig(), toVector({"/music/a.mp3", "/music/b.flac"})};
+    v.vm.scan();
+    v.vm.setSelected(0, true);  // selection active
+
+    // The catalogue does not flip with the selection state.
+    const auto commands = v.vm.rowCommands(1);
+    QCOMPARE(commands.size(), size_t(2));
+    if (commands.size() == 2) {
+        QCOMPARE(commands[0], LibraryViewModel::RowCommand::Play);
+        QCOMPARE(commands[1], LibraryViewModel::RowCommand::AddToQueue);
+    }
 }
 
 QTEST_MAIN(TestLibraryVm)

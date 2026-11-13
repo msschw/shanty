@@ -23,6 +23,7 @@
 using shanty::FakePlaylistCodec;
 using shanty::PlaylistEntry;
 using shanty::PlaylistFlowState;
+using shanty::PlaylistViewModel;
 
 namespace {
 
@@ -168,6 +169,11 @@ private slots:
     void beginExportWhileDirtyIsNotGuarded();
     void successfulImportClearsDirtyFailedImportKeepsIt();
     void successfulExportClearsDirtyFailedExportKeepsIt();
+
+    // ---- SH-809 (UX-8): row context-menu command catalogue (red-first) -------
+    void rowCommandsOfferPlayFromHereAndRemove();
+    void rowCommandsOnOutOfRangeIndexAreEmpty();
+    void rowCommandsAreIndependentOfFlowAndDirtyState();
 };
 
 void TestPlaylistVM::freshViewModelIsIdleWithNoEvents() {
@@ -963,6 +969,57 @@ void TestPlaylistVM::successfulExportClearsDirtyFailedExportKeepsIt() {
     f.vm.confirmExport(f.exportPath());
     QCOMPARE(f.vm.flowState(), PlaylistFlowState::Failed);
     QCOMPARE(f.vm.isDirty(), true);
+}
+
+// ---- SH-809 (UX-8): row context-menu command catalogue ------------------------
+// The pressAndHold menu content is a VIEW-MODEL decision (host-tested):
+// a playlist row offers PlayFromHere (the row-tap play bridge, SH-802
+// family) and Remove (the existing removeAt). The catalogue is a pure
+// function of the index validity — the bridges own the rejection
+// semantics, so the flow state and dirtiness do NOT filter the menu
+// (a menu that flips while a dialog is open would be unpredictable).
+
+void TestPlaylistVM::rowCommandsOfferPlayFromHereAndRemove() {
+    Fixture f;
+    f.vm.add(pe("/a.mp3", "A", 10));
+    f.vm.add(pe("/b.ogg", "B", 20));
+
+    const auto commands = f.vm.rowCommands(1);
+    QCOMPARE(commands.size(), size_t(2));
+    if (commands.size() == 2) {
+        QCOMPARE(commands[0], PlaylistViewModel::RowCommand::PlayFromHere);
+        QCOMPARE(commands[1], PlaylistViewModel::RowCommand::Remove);
+    }
+}
+
+void TestPlaylistVM::rowCommandsOnOutOfRangeIndexAreEmpty() {
+    Fixture f;
+    f.vm.add(pe("/a.mp3", "A", 10));
+
+    // No row → no menu: the empty catalogue is the QML "do not open" signal.
+    QCOMPARE(f.vm.rowCommands(1).empty(), true);
+    QCOMPARE(f.vm.rowCommands(99).empty(), true);
+}
+
+void TestPlaylistVM::rowCommandsAreIndependentOfFlowAndDirtyState() {
+    Fixture f;
+    f.vm.add(pe("/a.mp3", "A", 10));
+    f.vm.add(pe("/b.ogg", "B", 20));
+    // Make the editor dirty AND park a flow (AwaitingConfirm): the menu
+    // content must not flip with either.
+    f.vm.removeAt(1);    // dirty (one entry removed)
+    f.vm.beginImport();  // dirty → AwaitingConfirm
+
+    QCOMPARE(f.vm.isDirty(), true);
+    QCOMPARE(f.vm.flowState(), PlaylistFlowState::AwaitingConfirm);
+
+    // The remaining row still gets the FULL catalogue.
+    const auto commands = f.vm.rowCommands(0);
+    QCOMPARE(commands.size(), size_t(2));
+    if (commands.size() == 2) {
+        QCOMPARE(commands[0], PlaylistViewModel::RowCommand::PlayFromHere);
+        QCOMPARE(commands[1], PlaylistViewModel::RowCommand::Remove);
+    }
 }
 
 QTEST_MAIN(TestPlaylistVM)

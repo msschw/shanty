@@ -18,6 +18,13 @@ void PlaybackQueue::clear() {
     current_ = 0;
 }
 
+void PlaybackQueue::append(const std::string& path) {
+    // SH-809 Phase A stub: the append contract is locked red-first in
+    // tests/playback_queue; every target case must fail by assertion until
+    // Phase B implements it.
+    static_cast<void>(path);
+}
+
 void PlaybackQueue::setCurrent(std::size_t index) {
     if (entries_.empty()) {
         return;  // no-op on an empty queue (documented contract)

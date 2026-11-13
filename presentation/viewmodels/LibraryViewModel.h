@@ -111,6 +111,17 @@ public:
     /// The selected tracks' paths, ascending by listing order.
     std::vector<std::string> selectionPaths() const;
 
+    // ---- SH-809 (UX-8): row context-menu command catalogue -------------------
+    /// The commands the QML pressAndHold menu offers for the track row
+    /// `index` (the facade maps them to stable strings). Pure function of
+    /// the index validity — the bridges own the rejection semantics:
+    ///   Play       → the SH-802 queue-replace bridge with just this path
+    ///                (playFromPaths([path]) — plays the track NOW)
+    ///   AddToQueue → the non-destructive queue append (controller enqueue;
+    ///                nothing stops, nothing plays on its own)
+    enum class RowCommand { Play, AddToQueue };
+    std::vector<RowCommand> rowCommands(std::size_t index) const;
+
 private:
     ILibraryStore& store_;
     LibraryService& library_;

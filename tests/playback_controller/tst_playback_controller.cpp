@@ -90,6 +90,12 @@ private slots:
     void seekWhileIdleIsDocumentedNoop();
     void seekOnFreshRestoredSessionDropsTheRestoredOffset();
 
+    // ---- SH-809 (UX-8): queue append (library "Add to queue") --------------
+    void enqueueAppendsToEndWithoutTouchingPlayback();
+    void enqueueToEmptyQueueDoesNotStartAudio();
+    void enqueueEmptyPathIsRejectedNoop();
+    void enqueueFiresNoCallbacks();
+
     // ---- engine passthrough ------------------------------------------------
     void positionAndDurationPassThroughFromEngine();
 };
@@ -390,6 +396,76 @@ void TestPlaybackController::jumpToOutOfRangeIsInvalidNoop() {
     QCOMPARE(f.engine.playCalls.size(), size_t(0));
     QCOMPARE(f.invalidReasons.size(), size_t(1));
     QCOMPARE(lastReason(f.invalidReasons), QString("jumpTo: index out of range"));
+}
+
+// ---- SH-809 (UX-8): queue append ---------------------------------------------
+// The library row menu's "Add to queue" bridges through the controller as
+// enqueue(): a PURE queue-composition change — no engine call, no state
+// transition, no callback (the 1 Hz shell tick both refreshes the UI and
+// persists the extended queue, per the SH-805 wiring). The playback state
+// is owned by the transport commands alone.
+
+void TestPlaybackController::enqueueAppendsToEndWithoutTouchingPlayback() {
+    Fixture f;
+    f.controller.loadQueue({"/a.mp3", "/b.ogg"});
+    f.controller.play();  // Playing at index 0
+
+    f.controller.enqueue("/c.flac");
+
+    // Composition changed, playback untouched: no engine command at all,
+    // state stays Playing, selection stays on the playing entry.
+    QCOMPARE(f.queue.count(), size_t(3));
+    QCOMPARE(asQ(f.queue.entries().back()), QString::fromLatin1("/c.flac"));
+    QCOMPARE(f.controller.currentIndex(), size_t(0));
+    QCOMPARE(asQ(f.controller.currentEntry()), QString::fromLatin1("/a.mp3"));
+    QCOMPARE(f.controller.state(), PlaybackController::State::Playing);
+    QCOMPARE(f.engine.playCalls.size(), size_t(1));  // the earlier play only
+    QCOMPARE(f.engine.stopCalls, 0);
+    QCOMPARE(f.engine.pauseCalls, 0);
+    QCOMPARE(f.invalidReasons.size(), size_t(0));
+}
+
+void TestPlaybackController::enqueueToEmptyQueueDoesNotStartAudio() {
+    Fixture f;  // fresh controller: Idle, empty queue
+
+    f.controller.enqueue("/x.wav");
+
+    // The queue gains its single entry but NOTHING plays: idle stays idle,
+    // the engine is never touched (restore-paused rule in spirit — a queue
+    // mutation never starts audio).
+    QCOMPARE(f.queue.count(), size_t(1));
+    QCOMPARE(asQ(f.controller.currentEntry()), QString::fromLatin1("/x.wav"));
+    QCOMPARE(f.controller.state(), PlaybackController::State::Idle);
+    QCOMPARE(f.engine.playCalls.size(), size_t(0));
+    QCOMPARE(f.invalidReasons.size(), size_t(0));
+}
+
+void TestPlaybackController::enqueueEmptyPathIsRejectedNoop() {
+    Fixture f;
+    f.controller.loadQueue({"/a.mp3"});
+
+    f.controller.enqueue("");
+
+    // Documented rejection (SH-809): an empty path is not an entry — state
+    // and queue untouched.
+    QCOMPARE(f.invalidReasons.size(), size_t(1));
+    QCOMPARE(lastReason(f.invalidReasons), QString::fromLatin1("enqueue: empty path"));
+    QCOMPARE(f.queue.count(), size_t(1));
+    QCOMPARE(f.controller.state(), PlaybackController::State::Idle);
+}
+
+void TestPlaybackController::enqueueFiresNoCallbacks() {
+    Fixture f;
+    f.controller.loadQueue({"/a.mp3", "/b.ogg"});
+    f.controller.play();
+    const auto transitionsBefore = f.transitions.size();
+
+    f.controller.enqueue("/c.flac");
+
+    // Silent composition change: onStateChanged does NOT fire (the shell's
+    // 1 Hz tick refreshes the snapshot and persists the queue).
+    QCOMPARE(f.transitions.size(), transitionsBefore);
+    QCOMPARE(f.invalidReasons.size(), size_t(0));
 }
 
 void TestPlaybackController::positionAndDurationPassThroughFromEngine() {
