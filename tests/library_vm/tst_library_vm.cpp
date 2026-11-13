@@ -486,7 +486,10 @@ void TestLibraryVm::reloadClearsSelection() {
 // discoverable surface; the menu is the per-row shortcut).
 
 void TestLibraryVm::rowCommandsOfferPlayAndAddToQueue() {
-    Vm v{LibraryConfig(), toVector({"/music/a.mp3", "/music/b.flac"})};
+    // The listing must pass the SH-202 filter (managed folders) — the
+    // scanner result alone is not the listing.
+    Vm v{configOf(toVector({"/music"})),
+         toVector({"/music/a.mp3", "/music/b.flac"})};
     v.vm.scan();
 
     const auto commands = v.vm.rowCommands(0);
@@ -498,7 +501,7 @@ void TestLibraryVm::rowCommandsOfferPlayAndAddToQueue() {
 }
 
 void TestLibraryVm::rowCommandsOnOutOfRangeIndexAreEmpty() {
-    Vm v{LibraryConfig(), toVector({"/music/a.mp3"})};
+    Vm v{configOf(toVector({"/music"})), toVector({"/music/a.mp3"})};
     v.vm.scan();
 
     // No row → no menu: the empty catalogue is the QML "do not open" signal.
@@ -507,7 +510,8 @@ void TestLibraryVm::rowCommandsOnOutOfRangeIndexAreEmpty() {
 }
 
 void TestLibraryVm::rowCommandsAreIndependentOfSelectionState() {
-    Vm v{LibraryConfig(), toVector({"/music/a.mp3", "/music/b.flac"})};
+    Vm v{configOf(toVector({"/music"})),
+         toVector({"/music/a.mp3", "/music/b.flac"})};
     v.vm.scan();
     v.vm.setSelected(0, true);  // selection active
 

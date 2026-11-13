@@ -90,6 +90,14 @@ public:
     /// Library/Settings facades so the picker stays facade-agnostic).
     Q_INVOKABLE QString homeDir() const;
 
+    // ---- SH-809 (UX-8): row context-menu catalogue ---------------------------
+    /// The pressAndHold menu commands for the row `index`, in stable QML
+    /// string form (mirror of PlaylistViewModel::rowCommands): an empty list
+    /// is the "do not open" signal (no row), otherwise the documented
+    /// playlist-row catalogue ["playFromHere", "remove"]. The QML menu
+    /// items map 1:1 onto these; the bridges own the rejection semantics.
+    Q_INVOKABLE QVariantList rowCommands(int index) const;
+
     // ---- Q_PROPERTY accessors ------------------------------------------------
     QVariantList entries() const;
     int entryCount() const;

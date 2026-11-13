@@ -89,6 +89,10 @@ public:
     /// replaced in list order, index 0, playing — playStarted() fires only
     /// on success (navigation is the emitting page's decision).
     Q_INVOKABLE void playFromPaths(const QVariantList& paths);
+    /// SH-809 (UX-8): the library row menu's "Add to queue" — appends the
+    /// path at the END of the current queue without touching playback (a
+    /// pure composition change; empty path rejected as a documented no-op).
+    Q_INVOKABLE void enqueue(const QString& path);
     /// SH-805: the STARTUP session-restore announcement — emits
     /// confirmed("queue: restored") once the QML shell exists (the restore
     /// itself happens before any UI, so the application layer announces it

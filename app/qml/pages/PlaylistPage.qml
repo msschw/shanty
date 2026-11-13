@@ -262,6 +262,34 @@ Page {
             }
 
             onClicked: playEntry(index)
+
+            // SH-809 (UX-8): long-press context menu. The catalogue (which
+            // commands are offered per row/state) is VIEW-MODEL owned and
+            // host-tested (PlaylistViewModel::rowCommands); the facade's
+            // rowCommands() is the open-guard and the empty catalogue
+            // (out-of-range row) is the "do not open" signal. The menu
+            // items map 1:1 onto the documented playlist-row catalogue
+            // ["playFromHere", "remove"]; the explicit row icons above stay
+            // as the visible fallback. Rejections surface through the
+            // bridges (documented no-ops → shell toasts).
+            onPressAndHold: {
+                if (playlist.rowCommands(index).length > 0) {
+                    contextMenu.open()
+                }
+            }
+
+            ContextMenu {
+                id: contextMenu
+
+                MenuItem {
+                    text: qsTr("Play from here")
+                    onClicked: playEntry(index)
+                }
+                MenuItem {
+                    text: qsTr("Remove")
+                    onClicked: playlist.removeAt(index)
+                }
+            }
         }
 
         ViewPlaceholder {

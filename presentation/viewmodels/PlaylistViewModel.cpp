@@ -182,11 +182,13 @@ long long PlaylistViewModel::totalDurationSeconds() const {
 
 std::vector<PlaylistViewModel::RowCommand> PlaylistViewModel::rowCommands(
     std::size_t index) const {
-    // SH-809 Phase A stub: the catalogue contract is locked red-first in
-    // tests/playlist_vm; every target case must fail by assertion until
-    // Phase B implements it.
-    static_cast<void>(index);
-    return {};
+    // Pure index validity: out of range → no menu. Valid → the SH-809
+    // playlist-row catalogue (PlayFromHere through the row-tap play bridge,
+    // Remove through removeAt); flow state and dirtiness do not filter it.
+    if (index >= service_.count()) {
+        return {};
+    }
+    return {RowCommand::PlayFromHere, RowCommand::Remove};
 }
 
 // ---- internal handlers ---------------------------------------------------------

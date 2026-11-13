@@ -156,11 +156,14 @@ std::vector<std::string> LibraryViewModel::selectionPaths() const {
 
 std::vector<LibraryViewModel::RowCommand> LibraryViewModel::rowCommands(
     std::size_t index) const {
-    // SH-809 Phase A stub: the catalogue contract is locked red-first in
-    // tests/library_vm; every target case must fail by assertion until
-    // Phase B implements it.
-    static_cast<void>(index);
-    return {};
+    // Pure index validity: out of range → no menu. Valid → the SH-809
+    // library-row catalogue (Play through the SH-802 bridge with just this
+    // path, AddToQueue through the controller's enqueue); the selection
+    // state does not filter it.
+    if (index >= tracks_.size()) {
+        return {};
+    }
+    return {RowCommand::Play, RowCommand::AddToQueue};
 }
 
 void LibraryViewModel::persist() {

@@ -19,10 +19,10 @@ void PlaybackQueue::clear() {
 }
 
 void PlaybackQueue::append(const std::string& path) {
-    // SH-809 Phase A stub: the append contract is locked red-first in
-    // tests/playback_queue; every target case must fail by assertion until
-    // Phase B implements it.
-    static_cast<void>(path);
+    // Pure composition change: the entry lands at the END; the selection is
+    // untouched. On an empty queue current_ is already 0, which IS the
+    // appended entry (setEntries' index-0 rule, consistently).
+    entries_.push_back(path);
 }
 
 void PlaybackQueue::setCurrent(std::size_t index) {

@@ -55,6 +55,14 @@ public:
     /// Selected tracks' paths, ascending by listing order (queue-ready).
     Q_INVOKABLE QVariantList selectionPaths();
 
+    // ---- SH-809 (UX-8): row context-menu catalogue ---------------------------
+    /// The pressAndHold menu commands for the track row `index`, in stable
+    /// QML string form (mirror of LibraryViewModel::rowCommands): an empty
+    /// list is the "do not open" signal (no row), otherwise the documented
+    /// library-row catalogue ["play", "addToQueue"]. The QML menu items map
+    /// 1:1 onto these; the bridges own the rejection semantics.
+    Q_INVOKABLE QVariantList rowCommands(int index) const;
+
     /// Home directory (start point for the QML folder picker page; the
     /// picker itself stays facade-agnostic, so the facades that can open it
     /// each carry this same one-line hook).

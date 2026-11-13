@@ -75,6 +75,28 @@ QVariantList LibraryFacade::selectionPaths() {
     return toStringList(viewModel_.selectionPaths());
 }
 
+QVariantList LibraryFacade::rowCommands(int index) const {
+    // SH-809: mirror the view-model catalogue in stable QML strings; a
+    // negative index is out of range like any oversized one (the view
+    // model takes std::size_t).
+    if (index < 0) {
+        return {};
+    }
+    QVariantList commands;
+    for (const LibraryViewModel::RowCommand command :
+         viewModel_.rowCommands(static_cast<std::size_t>(index))) {
+        switch (command) {
+            case LibraryViewModel::RowCommand::Play:
+                commands.append(QStringLiteral("play"));
+                break;
+            case LibraryViewModel::RowCommand::AddToQueue:
+                commands.append(QStringLiteral("addToQueue"));
+                break;
+        }
+    }
+    return commands;
+}
+
 QString LibraryFacade::homeDir() const {
     return pickers::homeDir();
 }

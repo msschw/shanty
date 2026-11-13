@@ -84,6 +84,15 @@ void PlayerFacade::playFromPaths(const QVariantList& paths) {
     viewModel_.playFromPaths(entries);
 }
 
+void PlayerFacade::enqueue(const QString& path) {
+    // SH-809: the library row menu's "Add to queue" — non-destructive
+    // queue append via the controller (silent by contract; the 1 Hz tick
+    // refreshes the UI and persists the extended queue).
+    if (controller_ != nullptr) {
+        controller_->enqueue(path.toStdString());
+    }
+}
+
 void PlayerFacade::notifySessionRestored() {
     // SH-805: the SH-803-reserved confirmation wording, verbatim.
     emit confirmed(QStringLiteral("queue: restored"));

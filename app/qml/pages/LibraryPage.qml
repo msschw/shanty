@@ -299,6 +299,36 @@ Page {
                             library.setSelected(index, !isSelected())
                         }
                     }
+
+                    // SH-809 (UX-8): long-press context menu. The catalogue
+                    // (which commands are offered per row/state) is
+                    // VIEW-MODEL owned and host-tested
+                    // (LibraryViewModel::rowCommands); the facade's
+                    // rowCommands() is the open-guard and the empty
+                    // catalogue (out-of-range row) is the "do not open"
+                    // signal. The menu items map 1:1 onto the documented
+                    // library-row catalogue ["play", "addToQueue"]; the
+                    // selection toggle stays the visible fallback. Rejected
+                    // commands surface through the bridges (documented
+                    // no-ops → shell toasts).
+                    onPressAndHold: {
+                        if (library.rowCommands(index).length > 0) {
+                            contextMenu.open()
+                        }
+                    }
+
+                    ContextMenu {
+                        id: contextMenu
+
+                        MenuItem {
+                            text: qsTr("Play")
+                            onClicked: player.playFromPaths([modelData])
+                        }
+                        MenuItem {
+                            text: qsTr("Add to queue")
+                            onClicked: player.enqueue(modelData)
+                        }
+                    }
                 }
             }
         }

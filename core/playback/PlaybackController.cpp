@@ -93,10 +93,15 @@ void PlaybackController::pause() {
 }
 
 void PlaybackController::enqueue(const std::string& path) {
-    // SH-809 Phase A stub: the enqueue contract is locked red-first in
-    // tests/playback_controller; every target case must fail by assertion
-    // until Phase B implements it.
-    static_cast<void>(path);
+    // SH-809 (UX-8): a pure queue-composition change. Deliberately SILENT:
+    // no engine call, no state transition, no callback — the shell's 1 Hz
+    // tick refreshes the UI snapshot and persists the extended queue (the
+    // SH-805 save hook), so enqueue needs no notification of its own.
+    if (path.empty()) {
+        invalidate("enqueue: empty path");
+        return;
+    }
+    queue_.append(path);
 }
 
 void PlaybackController::resume() {

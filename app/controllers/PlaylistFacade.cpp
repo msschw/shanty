@@ -93,6 +93,28 @@ int PlaylistFacade::entryCount() const {
     return static_cast<int>(viewModel_.entryCount());
 }
 
+QVariantList PlaylistFacade::rowCommands(int index) const {
+    // SH-809: mirror the view-model catalogue in stable QML strings; a
+    // negative index is out of range like any oversized one (the view
+    // model takes std::size_t).
+    if (index < 0) {
+        return {};
+    }
+    QVariantList commands;
+    for (const PlaylistViewModel::RowCommand command :
+         viewModel_.rowCommands(static_cast<std::size_t>(index))) {
+        switch (command) {
+            case PlaylistViewModel::RowCommand::PlayFromHere:
+                commands.append(QStringLiteral("playFromHere"));
+                break;
+            case PlaylistViewModel::RowCommand::Remove:
+                commands.append(QStringLiteral("remove"));
+                break;
+        }
+    }
+    return commands;
+}
+
 void PlaylistFacade::requestPlay() {
     // SH-802: extract the paths C++-side (playlist order) and hand them to
     // the app wiring; the player side owns the empty-check decision.
