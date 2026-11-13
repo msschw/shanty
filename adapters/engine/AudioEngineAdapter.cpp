@@ -152,6 +152,15 @@ std::string AudioEngineAdapter::toPlainPath(const QUrl& url) {
     return url.toLocalFile().toStdString();  // percent-decoded UTF-8
 }
 
+// ---- SH-903 Phase A stub: neutral mapping (always EngineFailure) so the
+// new cases FAIL BY ASSERTION. The real matrix lands in Phase B.
+PlaybackError::Code AudioEngineAdapter::mapGstError(const std::string& domain,
+                                                    int code) {
+    (void)domain;
+    (void)code;
+    return PlaybackError::Code::EngineFailure;
+}
+
 // ---- IEffectChain (SH-D402-6 no-op/bypass section) --------------------------
 // Documented no-op on BOTH host and device variants (see the decision record
 // in the header): QtMultimedia on Sailfish has no equalizer API to wire, so

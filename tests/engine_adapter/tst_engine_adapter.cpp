@@ -70,6 +70,13 @@ private slots:
     // ---- SH-806: seek primitive (host stub variant) -------------------------
     void seekOnHostStubIsSafeAndFiresNoCallbacks();
 
+    // ---- SH-903: gst error → SH-403 code mapping (pure helper) --------------
+    void gstCoreMissingPluginMapsToSkippedUnsupported();
+    void gstStreamCodecNotFoundMapsToSkippedUnsupported();
+    void gstResourceErrorsMapToDecodeFailure();
+    void gstStreamErrorsMapToDecodeFailure();
+    void gstLibraryAndUnknownErrorsMapToEngineFailure();
+
 private:
     static QString q(const std::string& s) { return QString::fromStdString(s); }
 };
@@ -166,6 +173,50 @@ void TestEngineAdapter::seekOnHostStubIsSafeAndFiresNoCallbacks() {
     QCOMPARE(probe.adapter.positionSeconds(), long(0));
     QCOMPARE(probe.adapter.durationSeconds(),
              long(shanty::Track::kUnknownDuration));
+}
+
+// ---- SH-903: gst error → SH-403 code mapping (pure helper) ------------------
+// The device engine moves to GStreamer (SH-E9, docs/eq-investigation.md).
+// Bus ERROR messages carry (GError domain string, numeric code); the
+// SH-403 supported-format gate matrix maps them to PlaybackError codes:
+//   - "gst-core-error" MISSING_PLUGIN, "gst-stream-error" CODEC_NOT_FOUND
+//     → SkippedUnsupported (the format gate surface);
+//   - "gst-resource-error" (any), "gst-stream-error" (any other)
+//     → DecodeFailure;
+//   - "gst-library-error" and anything unknown → EngineFailure.
+// Pure and gst-header-free on purpose: testable on the host.
+
+void TestEngineAdapter::gstCoreMissingPluginMapsToSkippedUnsupported() {
+    QCOMPARE(AudioEngineAdapter::mapGstError("gst-core-error", 14),
+             PlaybackError::Code::SkippedUnsupported);  // MISSING_PLUGIN
+}
+
+void TestEngineAdapter::gstStreamCodecNotFoundMapsToSkippedUnsupported() {
+    QCOMPARE(AudioEngineAdapter::mapGstError("gst-stream-error", 6),
+             PlaybackError::Code::SkippedUnsupported);  // CODEC_NOT_FOUND
+}
+
+void TestEngineAdapter::gstResourceErrorsMapToDecodeFailure() {
+    QCOMPARE(AudioEngineAdapter::mapGstError("gst-resource-error", 3),
+             PlaybackError::Code::DecodeFailure);  // NOT_FOUND
+    QCOMPARE(AudioEngineAdapter::mapGstError("gst-resource-error", 8),
+             PlaybackError::Code::DecodeFailure);  // READ
+}
+
+void TestEngineAdapter::gstStreamErrorsMapToDecodeFailure() {
+    QCOMPARE(AudioEngineAdapter::mapGstError("gst-stream-error", 9),
+             PlaybackError::Code::DecodeFailure);  // FORMAT
+    QCOMPARE(AudioEngineAdapter::mapGstError("gst-stream-error", 10),
+             PlaybackError::Code::DecodeFailure);  // DECODE
+}
+
+void TestEngineAdapter::gstLibraryAndUnknownErrorsMapToEngineFailure() {
+    QCOMPARE(AudioEngineAdapter::mapGstError("gst-library-error", 1),
+             PlaybackError::Code::EngineFailure);  // LIBRARY FAILED
+    QCOMPARE(AudioEngineAdapter::mapGstError("gst-core-error", 1),
+             PlaybackError::Code::EngineFailure);  // CORE FAILED
+    QCOMPARE(AudioEngineAdapter::mapGstError("totally-unknown-domain", 1),
+             PlaybackError::Code::EngineFailure);
 }
 
 QTEST_MAIN(TestEngineAdapter)

@@ -108,6 +108,12 @@ public:
     /// local file:// QUrl → plain UTF-8 path; "" for non-local/empty URLs.
     static std::string toPlainPath(const QUrl& url);
 
+    // ---- SH-903: gst bus error → SH-403 code mapping (pure helper) ----------
+    /// Maps a GStreamer bus ERROR message's (GError domain string, numeric
+    /// code) onto the SH-403 PlaybackError matrix. Pure and gst-header-free
+    /// (host-testable); see the decision record in the .cpp.
+    static PlaybackError::Code mapGstError(const std::string& domain, int code);
+
     // ---- IEffectChain (SH-D402-6 no-op/bypass section) ----------------------
     // Both methods accept EffectChainService calls and discard them (no
     // audible effect, no transport side effects, no error). Kept as real
