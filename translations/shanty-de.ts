@@ -125,6 +125,14 @@
         <source>Playlist</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Play</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add to queue</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>PlayerPage</name>
@@ -220,6 +228,14 @@
     </message>
     <message>
         <source>Importing replaces the current playlist. Unsaved edits will be lost.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Play from here</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
