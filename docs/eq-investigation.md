@@ -71,11 +71,13 @@ this same GStreamer stack:
   2. Same with initial gains (`band0=-6.0 band9=6.0`) → prerolls and
      plays (the element accepts gain values on construction).
 - **Cross-build feasibility:** the SDK target ships the gst runtime but
-  not the headers; `gstreamer1.0-devel` and
-  `gstreamer1.0-plugins-base-devel` ARE available in the configured
-  jolla repo and install into the build target via
-  `sb2 -m sdk-install -R zypper in …` (Build Engine, verified by
-  `zypper search`).
+  not the headers; `gstreamer1.0-devel` (gst core headers/libs — the
+  whole compile surface) IS available in the configured jolla repo and
+  installs into the build target via `sb2 -m sdk-install -R zypper in
+  …` (Build Engine). Correction 2026-11-13: only `gstreamer1.0-devel`
+  is needed — no plugins-base API is called directly, so
+  plugins-base-devel is NOT installed; compile+link probe against
+  `pkg-config --cflags/--libs gstreamer-1.0` verified in the target.
 - Verdict: adopted. Leanest path — the platform keeps decoding, the EQ
   is one inserted element, and the IAudioEngine port (SH-402) stays the
   seam: only the engine adapter's device implementation changes.
@@ -101,8 +103,8 @@ this same GStreamer stack:
 - **Dependencies:** `gstreamer1.0-plugins-good` moves from "already on
   the image" to an explicit runtime `Requires` in `rpm/shanty.spec`
   (the app's core feature now contractually depends on the equalizer
-  element); BuildRequires gains the two -devel packages (BuildRequires
-  only — pkgconfig() entries).
+  element); BuildRequires gains pkgconfig(gstreamer-1.0) — gst core
+  headers/libs only (see the cross-build correction above).
 - **Transport semantics to re-implement in the adapter** (playbin/bust
   driven): play/pause/resume/stop, seek (gst seek event), position
   queries (GST_QUERY), duration, track-finished (GST_MESSAGE_EOS or
