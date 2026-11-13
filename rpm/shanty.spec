@@ -14,10 +14,20 @@ License:    GPL-3.0-or-later
 URL:        http://example.org/
 Source0:    %{name}-%{version}.tar.bz2
 Requires:   sailfishsilica-qt5 >= 0.10.9
+# SH-901 (SH-E9): the device engine is GStreamer (playbin +
+# audio-filter=equalizer-10bands, docs/eq-investigation.md). Explicit
+# runtime contract for the equalizer element's owner; gst core/base
+# runtime ships with the base image (and libgstreamer's own soname
+# dependency is automatic).
+Requires:   gstreamer1.0-plugins-good
 BuildRequires:  pkgconfig(sailfishapp) >= 1.0.2
 BuildRequires:  pkgconfig(Qt5Core)
 BuildRequires:  pkgconfig(Qt5Qml)
 BuildRequires:  pkgconfig(Qt5Quick)
+# SH-901: gst core headers/libs — the whole compile surface of the
+# GStreamer engine adapter (elements are created by factory name at
+# runtime; no plugins-base API is called directly).
+BuildRequires:  pkgconfig(gstreamer-1.0)
 BuildRequires:  desktop-file-utils
 
 %description
