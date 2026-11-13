@@ -1,4 +1,5 @@
 // SH-902 Phase A: profile → device-band mapping (pure logic, core).
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Red-first: the mapping stub returns a flat 10-band vector, so the
 // shape cases FAIL BY ASSERTION (never by crash). Contract under test —
 // core/domain/EqualizerBandMapping.h:
@@ -11,7 +12,6 @@
 //   - identity for a profile already on the device grid;
 //   - unsorted input accepted (sorted internally);
 //   - outputs clamped to ±12 dB (EqualizerProfile::kMaxAbsGainDb).
-// Copyright 2026 Shanty contributors. SPDX-License-Identifier: GPL-3.0-or-later
 #include <QtTest>
 
 #include <cmath>
