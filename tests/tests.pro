@@ -43,3 +43,6 @@ SUBDIRS += packaging
 # Wave-8 follow-up: FilePickerPage directory-listing contract (suffix
 # filter semantics shared by the QML layer and the facade provider).
 SUBDIRS += picker_support
+
+# SH-902 (SH-E9): profile → device-band mapping (pure logic, core).
+SUBDIRS += eq_mapping

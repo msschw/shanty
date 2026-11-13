@@ -28,6 +28,7 @@ HEADERS += \
     domain/PathResolver.h \
     domain/EqualizerProfile.h \
     domain/AutoEqParseResult.h \
+    domain/EqualizerBandMapping.h \
     playback/PlaybackQueue.h \
     playback/PlaybackController.h \
     ports/IPlaylistCodec.h \
@@ -49,6 +50,7 @@ SOURCES += \
     domain/Playlist.cpp \
     domain/PathResolver.cpp \
     domain/EqualizerProfile.cpp \
+    domain/EqualizerBandMapping.cpp \
     playback/PlaybackQueue.cpp \
     playback/PlaybackController.cpp \
     services/LibraryService.cpp \
