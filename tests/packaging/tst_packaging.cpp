@@ -13,6 +13,7 @@
 //   4. declaredIconSizesShipPngFiles           (SAILFISHAPP_ICONS -> icons/<size>/shanty.png)
 //   5. distfilesAndTranslationSourcesExist     (DISTFILES/TRANSLATIONS paths on disk)
 //   6. qmlUserVisibleStringsHaveCatalogueEntries (SOFT, see the case)
+//   7. rpmSpecDeclaresEqualizerDependencies    (SH-901: the gst engine contract)
 
 #include <QDir>
 #include <QDirIterator>
@@ -134,6 +135,7 @@ private slots:
     void declaredIconSizesShipPngFiles();
     void distfilesAndTranslationSourcesExist();
     void qmlUserVisibleStringsHaveCatalogueEntries();
+    void rpmSpecDeclaresEqualizerDependencies();
 
 private:
     static QString specPath() {
@@ -444,6 +446,38 @@ void TestPackaging::qmlUserVisibleStringsHaveCatalogueEntries() {
             "[soft] qsTr string has no shanty.ts entry (parity enforced "
             "once translations are finalised, see decision above): '%1'")
             .arg(s)));
+}
+
+// ---- SH-901 (SH-E9): the gst engine's dependency contract --------------------
+// The device engine moves to GStreamer (playbin + audio-filter=
+// equalizer-10bands; docs/eq-investigation.md). Consequences the spec
+// must encode:
+//   - runtime Requires: gstreamer1.0-plugins-good — the package that owns
+//     libgstequalizer.so (the equalizer element; verified on the
+//     emulator). Explicit, not "hope it's on the image": the app's core
+//     feature now contractually depends on the element. (libgstreamer's
+//     own soname dependency is automatic once we link it.)
+//   - BuildRequires: pkgconfig(gstreamer-1.0) — gst core headers/libs are
+//     ALL the compile surface we need (elements are created by factory
+//     name at runtime; no plugins-base API is called directly).
+//   - Runtime Requires still must NOT use pkgconfig() (the standing
+//     rule from the failed emulator install).
+
+void TestPackaging::rpmSpecDeclaresEqualizerDependencies() {
+    QVERIFY(requireReadable(specPath(), "rpm/shanty.spec"));
+    const QString spec = readFileOrThrow(specPath());
+
+    QVERIFY2(spec.contains(QRegularExpression(
+                 QStringLiteral("^Requires:\\s*gstreamer1\\.0-plugins-good"),
+                 QRegularExpression::MultilineOption)),
+             "runtime Requires must declare gstreamer1.0-plugins-good "
+             "(the equalizer element's owner, SH-901)");
+    QVERIFY2(spec.contains(QRegularExpression(
+                 QStringLiteral("^BuildRequires:\\s*pkgconfig\\("
+                                "gstreamer-1\\.0\\)"),
+                 QRegularExpression::MultilineOption)),
+             "BuildRequires must declare pkgconfig(gstreamer-1.0) "
+             "(the gst core compile surface, SH-901)");
 }
 
 QTEST_MAIN(TestPackaging)
