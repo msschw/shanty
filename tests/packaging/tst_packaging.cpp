@@ -14,6 +14,7 @@
 //   5. distfilesAndTranslationSourcesExist     (DISTFILES/TRANSLATIONS paths on disk)
 //   6. qmlUserVisibleStringsHaveCatalogueEntries (SOFT, see the case)
 //   7. rpmSpecDeclaresEqualizerDependencies    (SH-901: the gst engine contract)
+//   8. rpmSpecDeclaresTaglibDependencies       (SH-1001: the tag reader contract)
 
 #include <QDir>
 #include <QDirIterator>
@@ -136,6 +137,7 @@ private slots:
     void distfilesAndTranslationSourcesExist();
     void qmlUserVisibleStringsHaveCatalogueEntries();
     void rpmSpecDeclaresEqualizerDependencies();
+    void rpmSpecDeclaresTaglibDependencies();
 
 private:
     static QString specPath() {
@@ -478,6 +480,33 @@ void TestPackaging::rpmSpecDeclaresEqualizerDependencies() {
                  QRegularExpression::MultilineOption)),
              "BuildRequires must declare pkgconfig(gstreamer-1.0) "
              "(the gst core compile surface, SH-901)");
+}
+
+// ---- SH-1001 (SH-E10 UX-12): the tag reader's dependency contract -----------
+// The metadata capability moves to taglib (SH-1001, UX.md §1 owner
+// direction). Consequences the spec must encode:
+//   - runtime Requires: taglib — the runtime lib ships on the images
+//     (taglib 2.0.2 verified on the emulator), but the app now
+//     contractually links it: declare the plain package name explicitly.
+//     (pkgconfig() in runtime Requires stays banned — standing rule from
+//     the failed emulator install.)
+//   - BuildRequires: pkgconfig(taglib) — the compile surface (headers
+//     + -ltag via pkg-config; taglib-devel in the SDK target).
+
+void TestPackaging::rpmSpecDeclaresTaglibDependencies() {
+    QVERIFY(requireReadable(specPath(), "rpm/shanty.spec"));
+    const QString spec = readFileOrThrow(specPath());
+
+    QVERIFY2(spec.contains(QRegularExpression(
+                 QStringLiteral("^Requires:\\s*taglib\\b"),
+                 QRegularExpression::MultilineOption)),
+             "runtime Requires must declare taglib (the metadata "
+             "reader's runtime lib, SH-1001)");
+    QVERIFY2(spec.contains(QRegularExpression(
+                 QStringLiteral("^BuildRequires:\\s*pkgconfig\\(taglib\\)"),
+                 QRegularExpression::MultilineOption)),
+             "BuildRequires must declare pkgconfig(taglib) "
+             "(the tag reader compile surface, SH-1001)");
 }
 
 QTEST_MAIN(TestPackaging)

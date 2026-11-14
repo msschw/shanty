@@ -70,8 +70,15 @@ SOURCES += \
 }
 
 HEADERS += \
-    engine/AudioEngineAdapter.h
+    engine/AudioEngineAdapter.h \
+    taglib/TagLibReader.h
 
 SOURCES += \
-    engine/AudioEngineAdapter.cpp
+    engine/AudioEngineAdapter.cpp \
+    taglib/TagLibReader.cpp
+
+# SH-1001 Phase A: TagLibReader is deliberately taglib-free at stub
+# level (the whole adapters lib stays linkable without taglib). SH-1001
+# Phase B links taglib via pkg-config here (host AND device — both
+# carry the lib).
 

@@ -46,3 +46,7 @@ SUBDIRS += picker_support
 
 # SH-902 (SH-E9): profile → device-band mapping (pure logic, core).
 SUBDIRS += eq_mapping
+
+# SH-1001 (SH-E10 UX-12): tag metadata reader port + taglib adapter
+# (committed real-file fixtures under tests/fixtures/tags).
+SUBDIRS += tag_reader
