@@ -15,6 +15,16 @@ public:
 
     virtual std::vector<std::string> scan(
         const std::vector<std::string>& folders) = 0;
+
+    // SH-1002 (SH-E10 UX-13): playlist discovery as a SEPARATE query —
+    // the audio scan() contract is untouched (Interface Segregation:
+    // audio consumers see the same port method as before). Same
+    // enumeration contract: recursive, deduplicated, deterministically
+    // sorted; the scanner enumerates candidate playlist files
+    // (.m3u/.m3u8) and leaves classification/filtering to
+    // LibraryService::scanPlaylists.
+    virtual std::vector<std::string> scanPlaylists(
+        const std::vector<std::string>& folders) = 0;
 };
 
 }  // namespace shanty

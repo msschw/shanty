@@ -17,6 +17,18 @@ public:
         return result_;
     }
 
+    // SH-1002 Phase A stub: separate playlist enumeration query. The
+    // playlist result and its own call counter stay controllable from
+    // the tests; Phase B keeps this shape.
+    std::vector<std::string> scanPlaylists(
+        const std::vector<std::string>&) override {
+        ++playlistCallCount_;
+        return playlistResult_;
+    }
+
     std::vector<std::string> result_;
     int callCount_ = 0;
+
+    std::vector<std::string> playlistResult_;
+    int playlistCallCount_ = 0;
 };

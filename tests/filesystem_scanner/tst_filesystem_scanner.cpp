@@ -34,6 +34,12 @@ private slots:
     void isDeterministicSorted();
     void skipsUnreadableDirectoriesWithoutCrashing();
     void emptyFolderYieldsNothing();
+    // SH-1002 (SH-E10 UX-13): playlist enumeration
+    void scanPlaylistsReturnsOnlyPlaylistFiles();
+    void scanPlaylistsIsRecursive();
+    void scanPlaylistsIsDeterministicSortedDeduped();
+    void scanPlaylistsNonExistingRootYieldsNothing();
+    void audioScanStillIgnoresPlaylistFiles();
 };
 
 void TestFilesystemScanner::returnsSupportedExtensionsOnly() {
@@ -98,6 +104,76 @@ void TestFilesystemScanner::emptyFolderYieldsNothing() {
     const QStringList result =
         toQ(scanner.scan({dir.path().toStdString()}));
     QCOMPARE(result, QStringList());
+}
+
+// ---- SH-1002: playlist enumeration (same contract as scan(), .m3u/.m3u8) ----
+
+void TestFilesystemScanner::scanPlaylistsReturnsOnlyPlaylistFiles() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    touch(dir.path() + "/top.m3u");
+    touch(dir.path() + "/top.m3u8");
+    touch(dir.path() + "/song.mp3");
+    touch(dir.path() + "/notes.txt");
+    touch(dir.path() + "/set.m3u.bak");
+
+    FilesystemScanner scanner;
+    const QStringList result =
+        toQ(scanner.scanPlaylists({dir.path().toStdString()}));
+    QCOMPARE(result.size(), 2);
+    QVERIFY(result.contains(dir.path() + QStringLiteral("/top.m3u")));
+    QVERIFY(result.contains(dir.path() + QStringLiteral("/top.m3u8")));
+}
+
+void TestFilesystemScanner::scanPlaylistsIsRecursive() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    touch(dir.path() + "/top.m3u");
+    QVERIFY(QDir(dir.path()).mkpath("playlists/sub"));
+    touch(dir.path() + "/playlists/sub/inner.m3u8");
+
+    FilesystemScanner scanner;
+    const QStringList result =
+        toQ(scanner.scanPlaylists({dir.path().toStdString()}));
+    QCOMPARE(result.size(), 2);
+    QVERIFY(result.contains(dir.path() + QStringLiteral("/playlists/sub/inner.m3u8")));
+}
+
+void TestFilesystemScanner::scanPlaylistsIsDeterministicSortedDeduped() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    touch(dir.path() + "/b.m3u");
+    touch(dir.path() + "/a.m3u");
+    touch(dir.path() + "/sub/c.m3u8");
+
+    FilesystemScanner scanner;
+    const QStringList result =
+        toQ(scanner.scanPlaylists({dir.path().toStdString(),
+                                   dir.path().toStdString()}));
+    // Sorted by full path; overlapping roots deduplicate.
+    QCOMPARE(result, (QStringList{dir.path() + QStringLiteral("/a.m3u"),
+                                  dir.path() + QStringLiteral("/b.m3u"),
+                                  dir.path() + QStringLiteral("/sub/c.m3u8")}));
+}
+
+void TestFilesystemScanner::scanPlaylistsNonExistingRootYieldsNothing() {
+    FilesystemScanner scanner;
+    const QStringList result =
+        toQ(scanner.scanPlaylists({"/nonexistent/shanty/folder"}));
+    QCOMPARE(result, QStringList());
+}
+
+void TestFilesystemScanner::audioScanStillIgnoresPlaylistFiles() {
+    // Regression pin: the audio enumeration contract is untouched by
+    // the playlist feature (Interface Segregation).
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    touch(dir.path() + "/song.mp3");
+    touch(dir.path() + "/top.m3u");
+
+    FilesystemScanner scanner;
+    const QStringList result = toQ(scanner.scan({dir.path().toStdString()}));
+    QCOMPARE(result, QStringList{dir.path() + QStringLiteral("/song.mp3")});
 }
 
 QTEST_MAIN(TestFilesystemScanner)

@@ -28,6 +28,12 @@ private slots:
     void nonEmptyWhitelistRestrictsResults();
     void whitelistOverrulesNothingButBlacklistWinsAlways();
     void delegatesScanToScanner();
+    // SH-1002 (SH-E10 UX-13): playlist discovery composition
+    void playlistsDiscoveredByExtension();
+    void playlistsFilteredByBlacklistAndWhitelist();
+    void playlistsRequireManagedFolder();
+    void playlistsDelegateToSeparateScannerQuery();
+    void audioScanUnaffectedByPlaylistCandidates();
 
 private:
     LibraryConfig baseConfig();
@@ -90,6 +96,72 @@ LibraryConfig TestLibraryScan::baseConfig() {
     LibraryConfig config;
     config.folders = {"/music"};
     return config;
+}
+
+// ---- SH-1002: playlist discovery (owner decision: a playlist = an
+// .m3u/.m3u8 file found within the library; same rule stack as audio) ----
+
+void TestLibraryScan::playlistsDiscoveredByExtension() {
+    FakeScanner scanner({"/music/top.m3u", "/music/top.m3u8",
+                         "/music/sub/deep.m3u", "/music/song.mp3",
+                         "/music/notes.txt", "/music/set.m3u.bak"});
+    const LibraryConfig config = baseConfig();
+    const QStringList result =
+        toQStringList(LibraryService(scanner).scanPlaylists(config));
+    // Only playlist-extension candidates pass; deterministic order.
+    QCOMPARE(result, (QStringList{"/music/sub/deep.m3u", "/music/top.m3u",
+                                  "/music/top.m3u8"}));
+}
+
+void TestLibraryScan::playlistsFilteredByBlacklistAndWhitelist() {
+    // Blacklist beats whitelist (same composition rule as audio).
+    FakeScanner scanner({"/music/keep.m3u", "/music/skip/drop.m3u"});
+    LibraryConfig config = baseConfig();
+    config.whitelist = {"/music/keep"};
+    config.blacklist = {"/music/skip"};
+    const QStringList result =
+        toQStringList(LibraryService(scanner).scanPlaylists(config));
+    QCOMPARE(result, QStringList{"/music/keep.m3u"});
+
+    // And the blacklist wins when both name the same path.
+    FakeScanner conflict({"/music/a.m3u"});
+    config = baseConfig();
+    config.whitelist = {"/music"};
+    config.blacklist = {"/music/a.m3u"};
+    QVERIFY(LibraryService(conflict).scanPlaylists(config).empty());
+}
+
+void TestLibraryScan::playlistsRequireManagedFolder() {
+    // A playlist-extension candidate outside the managed folders is
+    // ignored, exactly like audio candidates (SH-202 composition).
+    FakeScanner scanner({"/elsewhere/playlist.m3u", "/music/inside.m3u"});
+    LibraryConfig config = baseConfig();
+    config.folders = {"/music"};
+    const QStringList result =
+        toQStringList(LibraryService(scanner).scanPlaylists(config));
+    QCOMPARE(result, QStringList{"/music/inside.m3u"});
+}
+
+void TestLibraryScan::playlistsDelegateToSeparateScannerQuery() {
+    // Interface Segregation: scanPlaylists queries the scanner's
+    // playlist enumeration (exactly once), NOT scan() — the audio
+    // contract stays untouched.
+    FakeScanner scanner({});
+    const LibraryConfig config = baseConfig();
+    LibraryService(scanner).scanPlaylists(config);
+    QCOMPARE(scanner.playlistCallCount_, 1);
+    QCOMPARE(scanner.callCount_, 0);
+}
+
+void TestLibraryScan::audioScanUnaffectedByPlaylistCandidates() {
+    // Regression pin: .m3u candidates in the audio enumeration are NOT
+    // audio files and never appear in scan() output.
+    FakeScanner scanner({"/music/song.mp3", "/music/set.m3u",
+                         "/music/set.m3u8"});
+    const LibraryConfig config = baseConfig();
+    const QStringList result =
+        toQStringList(LibraryService(scanner).scan(config));
+    QCOMPARE(result, QStringList{"/music/song.mp3"});
 }
 
 QTEST_MAIN(TestLibraryScan)

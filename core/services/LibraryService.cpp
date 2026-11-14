@@ -39,4 +39,13 @@ std::vector<std::string> LibraryService::scan(
     }
     return tracks;
 }
+
+// SH-1002 Phase A stub: always empty so the red-first library_scan
+// cases fail by assertion. Phase B composes: managed folder → playlist
+// extension → FilterRule (identical rule stack to scan()).
+std::vector<std::string> LibraryService::scanPlaylists(
+    const LibraryConfig& config) const {
+    (void)config;
+    return {};
+}
 }  // namespace shanty

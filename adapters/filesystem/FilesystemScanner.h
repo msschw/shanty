@@ -17,6 +17,11 @@ class FilesystemScanner : public ILibraryScanner {
 public:
     std::vector<std::string> scan(
         const std::vector<std::string>& folders) override;
+
+    // SH-1002 (SH-E10 UX-13): playlist enumeration — see the port for
+    // the contract. Phase A stub returns nothing (red-first).
+    std::vector<std::string> scanPlaylists(
+        const std::vector<std::string>& folders) override;
 };
 
 }  // namespace shanty

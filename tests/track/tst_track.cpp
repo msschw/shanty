@@ -3,6 +3,7 @@
 #include <QtTest>
 
 #include "domain/AudioFormat.h"
+#include "domain/PlaylistFile.h"
 #include "domain/Track.h"
 
 using shanty::AudioFormat;
@@ -20,6 +21,10 @@ private slots:
     void makeFallsBackTitleToBasenameWithoutExtension();
     void makeRejectsUnsupportedExtension();
     void makeTreatsRelativePathAsPlainPath();  // design D3
+    // SH-1002 (SH-E10 UX-13): playlist file classification
+    void isSupportedPlaylistPathRecognisesM3uVariants();
+    void isSupportedPlaylistPathIgnoresCase();
+    void isSupportedPlaylistPathRejectsOthers();
 };
 
 void TestTrack::classifyExtensionRecognisesSupportedFormats() {
@@ -72,6 +77,30 @@ void TestTrack::makeTreatsRelativePathAsPlainPath() {
     const Track track = Track::make("music/song.mp3");
     QVERIFY(track.isValid());
     QCOMPARE(QString::fromStdString(track.path()), QString::fromLatin1("music/song.mp3"));
+}
+
+// ---- SH-1002: playlist file classification (owner decision: a playlist
+// = an .m3u/.m3u8 file found within the library) ----
+
+void TestTrack::isSupportedPlaylistPathRecognisesM3uVariants() {
+    QVERIFY(shanty::isSupportedPlaylistPath("/music/set.m3u"));
+    QVERIFY(shanty::isSupportedPlaylistPath("/music/set.m3u8"));
+}
+
+void TestTrack::isSupportedPlaylistPathIgnoresCase() {
+    QVERIFY(shanty::isSupportedPlaylistPath("/music/set.M3U"));
+    QVERIFY(shanty::isSupportedPlaylistPath("/music/set.M3u8"));
+    QVERIFY(shanty::isSupportedPlaylistPath("/music/set.m3U8"));
+}
+
+void TestTrack::isSupportedPlaylistPathRejectsOthers() {
+    QVERIFY(!shanty::isSupportedPlaylistPath("/music/song.mp3"));
+    QVERIFY(!shanty::isSupportedPlaylistPath("/music/set.txt"));
+    // Red herring: a hidden extension after the stem dot does not count.
+    QVERIFY(!shanty::isSupportedPlaylistPath("/music/set.m3u.bak"));
+    QVERIFY(!shanty::isSupportedPlaylistPath("/music/m3u"));
+    QVERIFY(!shanty::isSupportedPlaylistPath("/music/no-extension"));
+    QVERIFY(!shanty::isSupportedPlaylistPath(""));
 }
 
 QTEST_MAIN(TestTrack)

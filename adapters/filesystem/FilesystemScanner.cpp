@@ -59,4 +59,13 @@ std::vector<std::string> FilesystemScanner::scan(
     return paths;
 }
 
+// SH-1002 Phase A stub: always empty (clean miss) so the red-first
+// filesystem_scanner cases fail by assertion. Phase B enumerates
+// .m3u/.m3u8 files with the same recursion/dedup/sort contract.
+std::vector<std::string> FilesystemScanner::scanPlaylists(
+    const std::vector<std::string>& folders) {
+    (void)folders;
+    return {};
+}
+
 }  // namespace shanty

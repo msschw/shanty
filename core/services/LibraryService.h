@@ -23,6 +23,13 @@ public:
     /// nothing even if the scanner returns candidates.
     std::vector<std::string> scan(const LibraryConfig& config) const;
 
+    /// SH-1002 (SH-E10 UX-13): same composition as scan() for playlist
+    /// files (.m3u/.m3u8, owner decision: a playlist = an .m3u file
+    /// found within the library). The audio contract above is untouched
+    /// (separate scanner query, separate composition). Phase A stub
+    /// returns an empty set (red-first).
+    std::vector<std::string> scanPlaylists(const LibraryConfig& config) const;
+
 private:
     ILibraryScanner& scanner_;
 };

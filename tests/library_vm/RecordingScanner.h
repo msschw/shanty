@@ -22,7 +22,20 @@ public:
         return result_;
     }
 
+    // SH-1002 Phase A compile-fix stub: the port gained the separate
+    // playlist query; this fake keeps returning nothing (red-first
+    // suites assert against real implementations elsewhere).
+    std::vector<std::string> scanPlaylists(
+        const std::vector<std::string>& folders) override {
+        ++playlistCallCount_;
+        scannedPlaylistFolders_.push_back(folders);
+        return {};
+    }
+
     std::vector<std::string> result_;
     int callCount_ = 0;
     std::vector<std::vector<std::string>> scannedFolders_;
+
+    int playlistCallCount_ = 0;
+    std::vector<std::vector<std::string>> scannedPlaylistFolders_;
 };
