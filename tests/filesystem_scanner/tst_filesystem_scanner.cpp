@@ -144,6 +144,7 @@ void TestFilesystemScanner::scanPlaylistsIsDeterministicSortedDeduped() {
     QVERIFY(dir.isValid());
     touch(dir.path() + "/b.m3u");
     touch(dir.path() + "/a.m3u");
+    QVERIFY(QDir(dir.path()).mkpath("sub"));
     touch(dir.path() + "/sub/c.m3u8");
 
     FilesystemScanner scanner;

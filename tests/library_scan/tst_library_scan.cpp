@@ -102,9 +102,10 @@ LibraryConfig TestLibraryScan::baseConfig() {
 // .m3u/.m3u8 file found within the library; same rule stack as audio) ----
 
 void TestLibraryScan::playlistsDiscoveredByExtension() {
-    FakeScanner scanner({"/music/top.m3u", "/music/top.m3u8",
-                         "/music/sub/deep.m3u", "/music/song.mp3",
-                         "/music/notes.txt", "/music/set.m3u.bak"});
+    FakeScanner scanner({});
+    scanner.playlistResult_ = {
+        "/music/sub/deep.m3u", "/music/top.m3u", "/music/top.m3u8",
+        "/music/song.mp3", "/music/notes.txt", "/music/set.m3u.bak"};
     const LibraryConfig config = baseConfig();
     const QStringList result =
         toQStringList(LibraryService(scanner).scanPlaylists(config));
@@ -115,7 +116,8 @@ void TestLibraryScan::playlistsDiscoveredByExtension() {
 
 void TestLibraryScan::playlistsFilteredByBlacklistAndWhitelist() {
     // Blacklist beats whitelist (same composition rule as audio).
-    FakeScanner scanner({"/music/keep.m3u", "/music/skip/drop.m3u"});
+    FakeScanner scanner({});
+    scanner.playlistResult_ = {"/music/keep.m3u", "/music/skip/drop.m3u"};
     LibraryConfig config = baseConfig();
     config.whitelist = {"/music/keep"};
     config.blacklist = {"/music/skip"};
@@ -124,7 +126,8 @@ void TestLibraryScan::playlistsFilteredByBlacklistAndWhitelist() {
     QCOMPARE(result, QStringList{"/music/keep.m3u"});
 
     // And the blacklist wins when both name the same path.
-    FakeScanner conflict({"/music/a.m3u"});
+    FakeScanner conflict({});
+    conflict.playlistResult_ = {"/music/a.m3u"};
     config = baseConfig();
     config.whitelist = {"/music"};
     config.blacklist = {"/music/a.m3u"};
@@ -134,7 +137,9 @@ void TestLibraryScan::playlistsFilteredByBlacklistAndWhitelist() {
 void TestLibraryScan::playlistsRequireManagedFolder() {
     // A playlist-extension candidate outside the managed folders is
     // ignored, exactly like audio candidates (SH-202 composition).
-    FakeScanner scanner({"/elsewhere/playlist.m3u", "/music/inside.m3u"});
+    FakeScanner scanner({});
+    scanner.playlistResult_ = {"/elsewhere/playlist.m3u",
+                               "/music/inside.m3u"};
     LibraryConfig config = baseConfig();
     config.folders = {"/music"};
     const QStringList result =

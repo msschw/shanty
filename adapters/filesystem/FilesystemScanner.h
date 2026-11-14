@@ -3,6 +3,8 @@
 // case-insensitive, via shanty::isSupportedAudioPath), deduplicated and
 // sorted deterministically by full path string. Non-existing roots
 // contribute nothing; unreadable subtrees are skipped without crashing.
+// SH-1002: scanPlaylists() is the SAME walk filtered to .m3u/.m3u8
+// (shanty::isSupportedPlaylistPath) — the audio contract is untouched.
 // Copyright 2026 Shanty contributors. SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
