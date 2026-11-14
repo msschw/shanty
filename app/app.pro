@@ -23,6 +23,15 @@ TARGET = shanty
 TEMPLATE = app
 
 CONFIG += sailfishapp
+# qmake lazy-load quirk (SH-903 device build, diagnosed on the emulator):
+# CONFIG-flag .prf files load at the END of .pro parsing, in alphabetical
+# order — link_pkgconfig.prf runs BEFORE sailfishapp.prf, so once we set
+# CONFIG += link_pkgconfig (below, for gst), the prf's own
+# "PKGCONFIG += sailfishapp" lands too late and -lsailfishapp silently
+# vanishes from the link line. Declaring it during parsing fixes the
+# resolution order.
+PKGCONFIG += sailfishapp
+
 DEFINES += BUILD_APP
 
 CONFIG += c++14
@@ -64,14 +73,14 @@ LIBS += -L$$OUT_PWD/../presentation/viewmodels -lshanty-viewmodels
 LIBS += -L$$OUT_PWD/../adapters -lshanty-adapters
 LIBS += -L$$OUT_PWD/../core -lshanty-core
 
-# The adapters static lib's device variant (HAVE_QTMULTIMEDIA, see
-# adapters.pro) references QMediaPlayer symbols; the Qt Multimedia module
-# must therefore be linked into the app binary as well — same conditional
-# as the adapter's (host builds never reach this branch; see SH-D402-2).
+# The adapters static lib's device variant (HAVE_GSTREAMER, see
+# adapters.pro) references gstreamer-1.0 symbols; the gst runtime must be
+# linked into the app binary as well — same conditional as the adapter's
+# (host builds never reach this branch; see SH-D402-2). SH-903 (SH-E9):
+# the Qt Multimedia module is no longer linked.
 !onHost {
-    qtHaveModule(multimedia) {
-        QT += multimedia
-    }
+    CONFIG += link_pkgconfig
+    PKGCONFIG += gstreamer-1.0
 }
 
 DISTFILES += qml/shanty.qml \

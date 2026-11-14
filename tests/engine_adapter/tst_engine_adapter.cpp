@@ -7,7 +7,7 @@
 // file:// QUrl mapping (QUrl::fromLocalFile/toLocalFile semantics incl.
 // spaces/unusual bytes round trip) via the public static helpers
 // toLocalUrl()/toPlainPath(). Device-specific sound output is guarded by
-// HAVE_QTMULTIMEDIA and is validated manually on the emulator/device
+// HAVE_GSTREAMER and is validated manually on the emulator/device
 // (docs/engine-adapter.md). Phase A ran against the SH-402 stubs: every
 // unimplemented case failed by ASSERTION (QFATAL count 0), never by crash.
 #include <QtTest>

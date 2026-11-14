@@ -137,7 +137,8 @@ int main(int argc, char *argv[])
 
     // SH-806 (UX-10): the clamped seek command surfaces here; the port
     // unfreeze routes it into the controller's seek command (engine adapter
-    // → QMediaPlayer::setPosition). The SH-D604-B1 clamping contract lives
+    // → gst flush seek on the playbin, SH-903). The SH-D604-B1 clamping
+    // contract lives
     // in the view-model; a seek without a known duration never reaches this
     // point (onSeekRejected → "Seeking is not available yet").
     QObject::connect(player, &PlayerFacade::seekRequested, player,
