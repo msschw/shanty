@@ -118,6 +118,7 @@ private slots:
 
     // ---- SH-804 (UX-9): mini-player bar content inputs (regression guard) ----
     void miniPlayerBarContentInputsKeepTheirMeaning();
+    void miniPlayerBarTransportControlsKeepTheirSemantics();
 
     // ---- SH-808 (UX-6): read-only queue-entries snapshot (red-first) ---------
     void freshViewModelExposesNoQueueEntries();
@@ -662,6 +663,59 @@ void TestPlayerViewModel::miniPlayerBarContentInputsKeepTheirMeaning() {
     f.vm.refresh();
     QCOMPARE(f.vm.queueCount(), size_t(0));
     QCOMPARE(f.vm.currentEntry(), std::string(""));
+}
+
+// ---- SH-1006 (UX-17): player toast transport controls (regression guard) -----
+// The SH-804 bar gains prev / play-pause / next (owner direction
+// 2026-11-14). QML-only: the controls bind the SAME view-model commands and
+// flags the Player page's transport row binds (togglePlayPause / next /
+// previous + canGoPrevious / canGoNext / transportEnabled) — all
+// individually locked by the cases above. This guard pins the COMBINED
+// dependency set the bar relies on, in the sequence a bar user exercises
+// it, so no silent semantic change to the page transport can break the
+// toast controls.
+
+void TestPlayerViewModel::miniPlayerBarTransportControlsKeepTheirSemantics() {
+    Fixture f;
+    f.engine.durSeconds = 60;
+    f.controller.loadQueue({"/music/a.mp3", "/music/b.mp3", "/music/c.mp3"});
+
+    // Idle at index 0: previous is not offered (bar icon disabled).
+    // (Snapshot getters follow the last refresh() — the 1 Hz contract.)
+    f.vm.refresh();
+    QCOMPARE(f.vm.canGoPrevious(), false);
+    QCOMPARE(f.vm.canGoNext(), true);
+
+    // Play from the bar's toggle: playing, index 0.
+    f.vm.togglePlayPause();
+    f.vm.refresh();
+    QCOMPARE(f.vm.state(), PlaybackController::State::Playing);
+
+    // Toggle again = pause; toggle again = resume (same entry, no move).
+    f.vm.togglePlayPause();
+    f.vm.refresh();
+    QCOMPARE(f.vm.state(), PlaybackController::State::Paused);
+    QCOMPARE(f.vm.currentEntry(), std::string("/music/a.mp3"));
+    f.vm.togglePlayPause();
+    f.vm.refresh();
+    QCOMPARE(f.vm.state(), PlaybackController::State::Playing);
+
+    // next from the bar: index 1, still playing; previous walks back.
+    f.vm.next();
+    f.vm.refresh();
+    QCOMPARE(f.vm.currentEntry(), std::string("/music/b.mp3"));
+    QCOMPARE(f.vm.state(), PlaybackController::State::Playing);
+    f.vm.previous();
+    f.vm.refresh();
+    QCOMPARE(f.vm.currentEntry(), std::string("/music/a.mp3"));
+
+    // At the last entry next is not offered; previous always is.
+    f.controller.next();
+    f.controller.next();
+    f.vm.refresh();
+    QCOMPARE(f.vm.currentEntry(), std::string("/music/c.mp3"));
+    QCOMPARE(f.vm.canGoNext(), false);
+    QCOMPARE(f.vm.canGoPrevious(), true);
 }
 
 // ---- SH-808 (UX-6): read-only queue-entries snapshot -----------------------------
