@@ -248,11 +248,15 @@ ApplicationWindow {
     // page stack (FilePickerPage / PromptPage — never facade commands) make
     // pageStack.depth EXCEED navigationFacade.depth (the view model's depth
     // never exceeds 2 — locked in tests/navigation). Content: entry title,
-    // transport state word and the thin progress line, all riding the
-    // snapshot getters the shell's 1 Hz timer keeps fresh. Tap →
-    // navigationFacade.show("player") — the SH-801 one-sibling-command: push
-    // from the root, atomic replace from a sibling; the bar hides itself
-    // through the currentPage binding once the Player is up.
+    // the thin progress line, and (SH-1006, UX-17 — owner direction
+    // 2026-11-14) the transport controls (previous / play-pause / next)
+    // mirroring the Player page's transport row — same commands, same
+    // canGo flags, same state-driven icon; the state word label is gone
+    // (the play/pause icon carries the state; details live on the Player
+    // page and the cover). Tap on the info area →
+    // navigationFacade.show("player") — the SH-801 one-sibling-command:
+    // push from the root, atomic replace from a sibling; the bar hides
+    // itself through the currentPage binding once the Player is up.
     Rectangle {
         id: playerBar
 
@@ -275,6 +279,21 @@ ApplicationWindow {
             color: Theme.highlightColor
         }
 
+        // SH-1006: info-area tap — declared FIRST so the transport Row and
+        // the title (declared after it, higher z within the same parent)
+        // receive their own events before this area does; a button tap must
+        // never double-fire with the tap that opens the full Player page.
+        // SH-801 sync discipline: the shell never calls facade.show()
+        // directly — the view-model command alone does NOT move the QML
+        // page stack (the pages mirror the outcome via the shared
+        // Nav.showPage helper; a bare show() left the VM on "player"
+        // while the stack stayed put — found on the device drive). The
+        // helper is the single sync point for both directions.
+        MouseArea {
+            anchors.fill: parent
+            onClicked: Nav.showPage(navigationFacade, pageStack, "player")
+        }
+
         Label {
             id: playerBarTitle
 
@@ -282,7 +301,7 @@ ApplicationWindow {
             anchors.leftMargin: Theme.horizontalPageMargin
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width - 2 * Theme.horizontalPageMargin
-                   - playerBarState.implicitWidth - Theme.paddingMedium
+                   - playerBarControls.width - Theme.paddingMedium
             text: player.currentEntry !== ""
                       ? player.currentEntry.split("/").pop()
                       : qsTr("Nothing playing")
@@ -291,26 +310,38 @@ ApplicationWindow {
             color: Theme.primaryColor
         }
 
-        Label {
-            id: playerBarState
+        // SH-1006: transport cluster — the page transport row's exact
+        // bindings (regression-locked in tests/player_vm). Declared after
+        // the info-area MouseArea, so the buttons sit above it and are
+        // tappable.
+        Row {
+            id: playerBarControls
 
             anchors.right: parent.right
-            anchors.rightMargin: Theme.horizontalPageMargin
+            anchors.rightMargin: Theme.paddingMedium
             anchors.verticalCenter: parent.verticalCenter
-            text: player.state
-            font.pixelSize: Theme.fontSizeExtraSmall
-            color: Theme.secondaryColor
-        }
+            spacing: Theme.paddingSmall
 
-        MouseArea {
-            anchors.fill: parent
-            // SH-801 sync discipline: the shell never calls facade.show()
-            // directly — the view-model command alone does NOT move the QML
-            // page stack (the pages mirror the outcome via the shared
-            // Nav.showPage helper; a bare show() left the VM on "player"
-            // while the stack stayed put — found on the device drive). The
-            // helper is the single sync point for both directions.
-            onClicked: Nav.showPage(navigationFacade, pageStack, "player")
+            IconButton {
+                anchors.verticalCenter: parent.verticalCenter
+                icon.source: "image://theme/icon-m-previous"
+                enabled: player.canGoPrevious
+                onClicked: player.previous()
+            }
+            IconButton {
+                anchors.verticalCenter: parent.verticalCenter
+                icon.source: player.state === "playing"
+                                 ? "image://theme/icon-m-pause"
+                                 : "image://theme/icon-m-play"
+                enabled: player.transportEnabled
+                onClicked: player.togglePlayPause()
+            }
+            IconButton {
+                anchors.verticalCenter: parent.verticalCenter
+                icon.source: "image://theme/icon-m-next"
+                enabled: player.canGoNext
+                onClicked: player.next()
+            }
         }
     }
 }
