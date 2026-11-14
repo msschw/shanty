@@ -28,6 +28,13 @@ BuildRequires:  pkgconfig(Qt5Quick)
 # GStreamer engine adapter (elements are created by factory name at
 # runtime; no plugins-base API is called directly).
 BuildRequires:  pkgconfig(gstreamer-1.0)
+# SH-1001 (SH-E10 UX-12): tag metadata reader. Runtime lib ships on the
+# images (taglib 2.0.2 verified on the emulator) but is now a
+# contractual link dependency — declared as the plain package name
+# (pkgconfig() stays banned in runtime Requires). Compile surface:
+# headers + -ltag via pkg-config.
+Requires:   taglib
+BuildRequires:  pkgconfig(taglib)
 BuildRequires:  desktop-file-utils
 
 %description

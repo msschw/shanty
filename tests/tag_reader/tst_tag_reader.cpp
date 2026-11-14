@@ -62,9 +62,10 @@ void TestTagReader::readReturnsFullTagsForOgg() {
 void TestTagReader::readReturnsNonAsciiTitleVerbatim() {
     TagLibReader reader;
     const TagMetadata md = reader.read(fixture("tagged.ogg").toStdString());
-    // The non-ASCII title survives the round trip byte-exactly (UTF-8).
+    // The non-ASCII title survives the round trip byte-exactly (UTF-8):
+    // "Café" is 4 code points / 5 bytes (é = 0xC3 0xA9), + " Deluxe" (7).
     QCOMPARE(QString::fromStdString(md.title), QString::fromUtf8("Café Deluxe"));
-    QCOMPARE(md.title.size(), std::string::size_type(11));
+    QCOMPARE(md.title.size(), std::string::size_type(12));
 }
 
 void TestTagReader::readReturnsOnlyPresentTagsForPartialFile() {

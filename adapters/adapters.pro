@@ -77,8 +77,11 @@ SOURCES += \
     engine/AudioEngineAdapter.cpp \
     taglib/TagLibReader.cpp
 
-# SH-1001 Phase A: TagLibReader is deliberately taglib-free at stub
-# level (the whole adapters lib stays linkable without taglib). SH-1001
-# Phase B links taglib via pkg-config here (host AND device — both
-# carry the lib).
+# SH-1001 Phase B: TagLibReader links taglib on the host AND the device
+# (both carry the lib + pkg-config; host 2.3.2, SDK target/image 2.0.2 —
+# union API only, see the adapter header). Unconditional, unlike the
+# gst block above: the tag reader is core-library behaviour, not a
+# backend variant.
+CONFIG += link_pkgconfig
+PKGCONFIG += taglib
 

@@ -21,6 +21,12 @@ LIBS += -L$$OUT_PWD/../../adapters -L$$OUT_PWD/../../core -lshanty-adapters -lsh
 # SH-101: track the static libs so suite binaries always relink.
 PRE_TARGETDEPS += $$OUT_PWD/../../core/libshanty-core.a
 
+# SH-1001 Phase B: the suite pulls TagLibReader.o out of the adapters
+# archive, so the final link needs taglib (pkg-config libs are appended
+# AFTER the archive — link order stays correct).
+CONFIG += link_pkgconfig
+PKGCONFIG += taglib
+
 # SH-1001: committed fixture files (tiny real tagged audio, generated
 # once with taglib itself — see tst_tag_reader.cpp header). Fixture
 # paths resolve via SHANTY_ROOT (out-of-source-build-proof — the

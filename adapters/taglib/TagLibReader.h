@@ -1,8 +1,4 @@
-// SH-1001 Phase A compile-fix stub (SH-E10 UX-12): the adapter type
-// exists so the tag_reader suite compiles; read() deliberately misses
-// everything (an empty TagMetadata) — the suite's value assertions fail
-// against THIS stub until Phase B wires taglib into it. The stub is
-// deliberately taglib-free so Phase A compiles on every host.
+// SH-1001 Phase B (SH-E10 UX-12): the concrete taglib reader.
 // Copyright 2026 Shanty contributors. SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
@@ -12,16 +8,23 @@
 
 namespace shanty {
 
-/// Phase A stub for the concrete taglib reader. See docs/acceptance
-/// trace: replaced by the real taglib implementation in SH-1001
-/// Phase B (the header gains the taglib include surface there).
+/// Reads tag metadata via taglib (the image's audio-metadata library).
+/// Contract notes (SH-1001):
+///   - Clean miss, never a throw: an absent, unreadable, unsupported
+///     or unparseable file yields an empty TagMetadata (isValid() is
+///     checked BEFORE any tag access — taglib returns tag pointers of
+///     NULL for unparseable files).
+///   - taglib 2.x union API only (FileRef/Tag/AudioProperties) — the
+///     SDK target carries 2.0.2 while the host carries 2.3.2; the union
+///     surface is identical across both.
+///   - Strings cross the boundary as UTF-8 (toCString(true)); empty
+///     fields mean "no such tag".
+///   - durationSeconds comes from the audio properties (present even
+///     when no tag exists); -1 when the properties are unavailable.
 class TagLibReader : public ITagReader {
 public:
     TagLibReader() = default;
 
-    // STUB: always the clean miss. Phase B reads title/artist/album/
-    // genre from ID3v2 / Xiph comments and durationSeconds from the
-    // audio properties.
     TagMetadata read(const std::string& path) override;
 
 private:
