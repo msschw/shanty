@@ -132,8 +132,11 @@ int main(int argc, char *argv[])
         playlistViewModel, application.data());
     PlayerFacade *player = new PlayerFacade(
         playerViewModel, &controller, application.data());
+    // SH-1004 (UX-15): the settings facade shares the library-config store
+    // (FileIndexStore) with the library side — the single write path both
+    // view models compose (LibraryConfigEditor) and reload over.
     SettingsFacade *settings = new SettingsFacade(
-        settingsStore, engine, autoEqReader, application.data());
+        settingsStore, engine, autoEqReader, libraryStore, application.data());
 
     // SH-806 (UX-10): the clamped seek command surfaces here; the port
     // unfreeze routes it into the controller's seek command (engine adapter

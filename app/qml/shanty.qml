@@ -159,6 +159,13 @@ ApplicationWindow {
             return qsTr("That equalizer band does not exist")
         case "band: rejected by store":
             return qsTr("The profile could not be saved")
+        // Library-config editing (SH-1004, UX-15 — shared editor catalogue)
+        case "addFolder: empty path":
+        case "addWhitelistEntry: empty path":
+        case "addBlacklistEntry: empty path":
+            return qsTr("Please enter a path")
+        case "addFolder: already managed":
+            return qsTr("That folder is already managed")
         }
         return reason
     }

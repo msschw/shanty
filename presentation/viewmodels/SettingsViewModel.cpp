@@ -33,7 +33,19 @@ SettingsViewModel::SettingsViewModel(ISettingsStore& store, IEffectChain& chain,
       chain_(chain),
       reader_(reader),
       libraryStore_(libraryStore),
-      profileService_(store) {
+      profileService_(store),
+      libraryConfigEditor_(libraryStore) {
+    // SH-1004: the editor's rejection channel is the view model's own
+    // onRejected (the existing reason-catalogue → toast path), and each
+    // effective persisted mutation surfaces through onLibraryConfigChanged.
+    libraryConfigEditor_.onInvalid = [this](const char* reason) {
+        rejected(reason);
+    };
+    libraryConfigEditor_.onConfigChanged = [this]() {
+        if (onLibraryConfigChanged) {
+            onLibraryConfigChanged();
+        }
+    };
     // Decision 6: construction IS the reload — profiles come from the
     // service, the selection from the view model's own key.
     profiles_ = profileService_.loadProfiles();
@@ -266,35 +278,41 @@ const EqualizerProfile* SettingsViewModel::findProfile(
     return nullptr;
 }
 
-// ---- SH-1004 (UX-15): library-config commands — Phase A stubs (red-first).
-// Every stub is a no-op: nothing is saved, nothing is rejected, and the
-// exposed config stays empty so the red cases fail by assertion. Phase B
-// delegates to the shared editing implementation (LibraryConfigEditor).
+// ---- SH-1004 (UX-15): library-config commands — delegation to the shared
+// editor (LibraryConfigEditor) over the SAME store the library side uses.
+// The rejection strings and save semantics are the editor's (single
+// decision point); the settings side only re-channels the hooks.
 
 const LibraryConfig& SettingsViewModel::libraryConfig() const {
-    return libraryConfig_;
+    return libraryConfigEditor_.config();
 }
 
-void SettingsViewModel::reloadLibraryConfig() {}
+void SettingsViewModel::reloadLibraryConfig() {
+    libraryConfigEditor_.reload();
+}
 
-void SettingsViewModel::addFolder(const std::string& path) { (void)path; }
+void SettingsViewModel::addFolder(const std::string& path) {
+    libraryConfigEditor_.addFolder(path);
+}
 
-void SettingsViewModel::removeFolder(const std::string& path) { (void)path; }
+void SettingsViewModel::removeFolder(const std::string& path) {
+    libraryConfigEditor_.removeFolder(path);
+}
 
 void SettingsViewModel::addWhitelistEntry(const std::string& path) {
-    (void)path;
+    libraryConfigEditor_.addWhitelistEntry(path);
 }
 
 void SettingsViewModel::removeWhitelistEntry(const std::string& path) {
-    (void)path;
+    libraryConfigEditor_.removeWhitelistEntry(path);
 }
 
 void SettingsViewModel::addBlacklistEntry(const std::string& path) {
-    (void)path;
+    libraryConfigEditor_.addBlacklistEntry(path);
 }
 
 void SettingsViewModel::removeBlacklistEntry(const std::string& path) {
-    (void)path;
+    libraryConfigEditor_.removeBlacklistEntry(path);
 }
 
 }  // namespace shanty

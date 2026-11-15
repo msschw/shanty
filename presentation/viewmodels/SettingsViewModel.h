@@ -101,6 +101,8 @@
 #include "../../core/ports/ILibraryStore.h"
 #include "../../core/services/SettingsService.h"
 
+#include "LibraryConfigEditor.h"
+
 namespace shanty {
 
 class IAutoEqReader;
@@ -130,6 +132,9 @@ public:
     std::function<void()> onProfilesChanged;
     /// Fired after the current-profile selection actually changed.
     std::function<void()> onSelectionChanged;
+    /// Fired after each EFFECTIVE library-config mutation (SH-1004): the
+    /// facade re-reads the exposed folder/filter lists then.
+    std::function<void()> onLibraryConfigChanged;
     /// Fired for a command that was refused as a documented no-op
     /// (reason catalogue: decision 4).
     std::function<void(const char* reason)> onRejected;
@@ -173,11 +178,12 @@ public:
     // ---- library configuration (SH-1004, UX-15) -----------------------------
     // The settings side owns the managed-folders / whitelist / blacklist
     // editing (owner direction 2026-11-14: library management lives ONLY in
-    // Settings). The commands reuse the LibraryViewModel rejection catalogue
-    // and save semantics (one shared editing implementation — see
-    // LibraryConfigEditor in Phase B); rejections fire onRejected so the
-    // existing toast mapping surfaces them. Phase A stubs: no-ops so the
-    // red-first cases fail by assertion.
+    // Settings). The commands DELEGATE to the same shared editing
+    // implementation the library side composes (LibraryConfigEditor over the
+    // SAME ILibraryStore — one rejection catalogue, one save-semantics
+    // decision point, cross-visibility through the store); rejections fire
+    // onRejected so the existing toast mapping surfaces them, and each
+    // effective persisted mutation fires onLibraryConfigChanged.
     /// The working library config as loaded/edited by this view model.
     const LibraryConfig& libraryConfig() const;
     /// Re-reads the working config through the store (the library side's
@@ -202,8 +208,9 @@ private:
     std::vector<EqualizerProfile> profiles_;
     std::string currentName_;
 
-    // SH-1004 Phase A stub backing: always empty (red-first).
-    LibraryConfig libraryConfig_;
+    // SH-1004: the shared editing implementation over the SAME store the
+    // library side composes (see LibraryConfigEditor.h for the contract).
+    LibraryConfigEditor libraryConfigEditor_;
 };
 
 }  // namespace shanty

@@ -10,14 +10,18 @@
 
 #include <vector>
 
+#include "core/ports/ILibraryStore.h"
+
 namespace shanty {
 
 SettingsFacade::SettingsFacade(ISettingsStore& store, IEffectChain& chain,
-                               IAutoEqReader& reader, QObject* parent)
+                               IAutoEqReader& reader,
+                               ILibraryStore& libraryStore, QObject* parent)
     : QObject(parent),
       store_(store),
       chain_(chain),
       reader_(reader),
+      libraryStore_(libraryStore),
       profileService_(store) {
     rebuildViewModel();
 }
@@ -116,6 +120,67 @@ QVariantList SettingsFacade::listDirectory(const QString& path,
     return pickers::listDirectory(path, nameFilters);
 }
 
+// ---- SH-1004 (UX-15): library-config commands — thin view-model mirrors.
+// Rejections flow through the existing rejected(reason) signal with the
+// shared editor's catalogue strings verbatim; effective mutations surface
+// through the view model's onLibraryConfigChanged mirror below.
+
+void SettingsFacade::addFolder(const QString& path) {
+    viewModel_->addFolder(path.toStdString());
+}
+
+void SettingsFacade::removeFolder(const QString& path) {
+    viewModel_->removeFolder(path.toStdString());
+}
+
+void SettingsFacade::addWhitelistEntry(const QString& path) {
+    viewModel_->addWhitelistEntry(path.toStdString());
+}
+
+void SettingsFacade::removeWhitelistEntry(const QString& path) {
+    viewModel_->removeWhitelistEntry(path.toStdString());
+}
+
+void SettingsFacade::addBlacklistEntry(const QString& path) {
+    viewModel_->addBlacklistEntry(path.toStdString());
+}
+
+void SettingsFacade::removeBlacklistEntry(const QString& path) {
+    viewModel_->removeBlacklistEntry(path.toStdString());
+}
+
+void SettingsFacade::reloadLibraryConfig() {
+    viewModel_->reloadLibraryConfig();
+    emit libraryConfigChanged();
+}
+
+QVariantList SettingsFacade::libraryFolders() const {
+    QVariantList list;
+    for (const std::string& folder :
+         viewModel_->libraryConfig().folders) {
+        list.append(QString::fromStdString(folder));
+    }
+    return list;
+}
+
+QVariantList SettingsFacade::libraryWhitelist() const {
+    QVariantList list;
+    for (const std::string& entry :
+         viewModel_->libraryConfig().whitelist) {
+        list.append(QString::fromStdString(entry));
+    }
+    return list;
+}
+
+QVariantList SettingsFacade::libraryBlacklist() const {
+    QVariantList list;
+    for (const std::string& entry :
+         viewModel_->libraryConfig().blacklist) {
+        list.append(QString::fromStdString(entry));
+    }
+    return list;
+}
+
 QVariantList SettingsFacade::profiles() const {
     QVariantList list;
     const std::vector<EqualizerProfile>& profiles = viewModel_->profiles();
@@ -151,15 +216,22 @@ QString SettingsFacade::currentProfileName() const {
 void SettingsFacade::rebuildViewModel() {
     // SH-D605-B1: re-construction IS the reload (SH-605 decision 6). The
     // constructor re-reads the profiles and the persisted selection and
-    // fires no hooks, so publish after re-attaching the mirrors.
-    viewModel_.reset(new SettingsViewModel(store_, chain_, reader_));
+    // fires no hooks, so publish after re-attaching the mirrors. SH-1004:
+    // the library-config editor is rebuilt over the same store as well —
+    // a fresh load of the shared config (cross-visibility read path).
+    viewModel_.reset(new SettingsViewModel(store_, chain_, reader_,
+                                           libraryStore_));
     connectViewModelCallbacks();
     emit profilesChanged();
+    emit libraryConfigChanged();
 }
 
 void SettingsFacade::connectViewModelCallbacks() {
     viewModel_->onProfilesChanged = [this] { emit profilesChanged(); };
     viewModel_->onSelectionChanged = [this] { emit profilesChanged(); };
+    viewModel_->onLibraryConfigChanged = [this] {
+        emit libraryConfigChanged();
+    };
     viewModel_->onRejected = [this](const char* reason) {
         rejected_ = true;
         emit rejected(QString::fromUtf8(reason));

@@ -33,6 +33,7 @@
 
 #include "core/ports/IAutoEqReader.h"
 #include "core/ports/IEffectChain.h"
+#include "core/ports/ILibraryStore.h"
 #include "core/ports/ISettingsStore.h"
 #include "core/services/SettingsService.h"
 #include "presentation/viewmodels/SettingsViewModel.h"
@@ -49,10 +50,22 @@ class SettingsFacade : public QObject {
     /// Empty string when nothing is selected.
     Q_PROPERTY(QString currentProfileName READ currentProfileName
                    NOTIFY profilesChanged)
+    /// SH-1004 (UX-15): the library-config lists, exposed for the settings
+    /// page's management sections (moved from the Library page). They read
+    /// the view model's working config over the SAME store the library side
+    /// uses; libraryConfigChanged fires after each effective mutation and
+    /// after the facade's own view-model rebuilds.
+    Q_PROPERTY(QVariantList libraryFolders READ libraryFolders
+                   NOTIFY libraryConfigChanged)
+    Q_PROPERTY(QVariantList libraryWhitelist READ libraryWhitelist
+                   NOTIFY libraryConfigChanged)
+    Q_PROPERTY(QVariantList libraryBlacklist READ libraryBlacklist
+                   NOTIFY libraryConfigChanged)
 
 public:
     explicit SettingsFacade(ISettingsStore& store, IEffectChain& chain,
                             IAutoEqReader& reader,
+                            ILibraryStore& libraryStore,
                             QObject* parent = nullptr);
 
     // ---- profile CRUD / selection / apply / reset (view-model contract) ---
@@ -95,15 +108,33 @@ public:
                                            const QVariantList& nameFilters)
         const;
 
+    // ---- library configuration (SH-1004, UX-15; see the class comment) ----
+    // Thin mirroring of the view model's commands — the rejection catalogue
+    // and save semantics live in the shared LibraryConfigEditor; rejections
+    // surface through rejected(reason) verbatim.
+    Q_INVOKABLE void addFolder(const QString& path);
+    Q_INVOKABLE void removeFolder(const QString& path);
+    Q_INVOKABLE void addWhitelistEntry(const QString& path);
+    Q_INVOKABLE void removeWhitelistEntry(const QString& path);
+    Q_INVOKABLE void addBlacklistEntry(const QString& path);
+    Q_INVOKABLE void removeBlacklistEntry(const QString& path);
+    Q_INVOKABLE void reloadLibraryConfig();
+
     // ---- Q_PROPERTY accessors ------------------------------------------------
     QVariantList profiles() const;
     QString currentProfileName() const;
+    QVariantList libraryFolders() const;
+    QVariantList libraryWhitelist() const;
+    QVariantList libraryBlacklist() const;
 
 signals:
     /// Fired after the stored profile list changed and was re-read, and
     /// after the current-profile selection actually changed (both NOTIFY
     /// properties derive from the same view-model state).
     void profilesChanged();
+    /// SH-1004: fired after each effective library-config mutation and
+    /// after every view-model rebuild (the lists are re-read then).
+    void libraryConfigChanged();
     /// Refused command (view-model onRejected mirror; reason catalogue
     /// strings verbatim, plus the facade's "band: …" reasons above).
     void rejected(const QString& reason);
@@ -128,6 +159,7 @@ private:
     ISettingsStore& store_;
     IEffectChain& chain_;
     IAutoEqReader& reader_;
+    ILibraryStore& libraryStore_;  // SH-1004: the shared library-config store
     SettingsService profileService_;  // band-edit persistence (SH-D605-B1)
     std::unique_ptr<SettingsViewModel> viewModel_;
 };

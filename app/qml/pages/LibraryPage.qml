@@ -1,7 +1,11 @@
-// SH-602 Phase B: Library page — the navigation root. Folder management
-// (add via a folder picker page, remove), whitelist/blacklist editing
-// (add via the prompt dialog, remove), the filtered file listing with
-// selection and the "play selection" queue-building flow (SH-604 bridge).
+// SH-602 Phase B: Library page — the navigation root. SH-1004 (UX-15,
+// owner direction 2026-11-14): the page is BROWSE-ONLY — the managed
+// folders / whitelist / blacklist editing moved to the Settings page
+// (whose view model shares the same store); this page re-reads the config
+// from the store on every activation (cross-visibility read path) and
+// rescans, so changes made in Settings are reflected here. The filtered
+// file listing with selection and the "play selection" queue-building
+// flow (SH-604 bridge) remain.
 import QtQuick 2.0
 import Sailfish.Silica 1.0
 import "../navigation.js" as Nav
@@ -32,31 +36,6 @@ Page {
         Nav.showPage(navigationFacade, pageStack, "player")
     }
 
-    function pushFolderPicker() {
-        var picker = pageStack.push(Qt.resolvedUrl("FilePickerPage.qml"), {
-            mode: "folder",
-            startDir: library.homeDir(),
-            listProvider: library.listDirectory
-        })
-        picker.accepted.connect(function(path) {
-            library.addFolder(path)
-            rescan()
-        })
-    }
-
-    function pushFilterPrompt(section) {
-        var prompt = pageStack.push(Qt.resolvedUrl("PromptPage.qml"), {
-            title: section === "whitelist" ? qsTr("Add whitelist entry")
-                                           : qsTr("Add blacklist entry"),
-            inputLabel: qsTr("Path"),
-            placeholderText: qsTr("Path")
-        })
-        prompt.accepted.connect(function() {
-            if (section === "whitelist") library.addWhitelistEntry(prompt.text.trim())
-            else library.addBlacklistEntry(prompt.text.trim())
-        })
-    }
-
     function pushPlayerPage() {
         Nav.showPage(navigationFacade, pageStack, "player")
     }
@@ -66,7 +45,11 @@ Page {
     }
 
     onStatusChanged: {
-        if (status === PageStatus.Active && library.tracks.length === 0) {
+        if (status === PageStatus.Active) {
+            // SH-1004: re-read the shared config from the store (Settings
+            // may have changed it) and refresh the listing. reload() clears
+            // the selection (V6) — a fresh activation starts a fresh browse.
+            library.reload()
             rescan()
         }
     }
@@ -108,137 +91,9 @@ Page {
                 title: qsTr("Library")
             }
 
-            // ---- managed folders -------------------------------------------
-            SectionHeader {
-                text: qsTr("Managed folders")
-            }
-
-            Repeater {
-                model: library.folders
-
-                delegate: ListItem {
-                    width: column.width
-                    contentHeight: Theme.itemSizeSmall
-
-                    Label {
-                        x: Theme.horizontalPageMargin
-                        width: parent.width - 2 * Theme.horizontalPageMargin
-                               - Theme.iconSizeMedium
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: modelData
-                        truncationMode: TruncationMode.Fade
-                    }
-                    IconButton {
-                        anchors.right: parent.right
-                        anchors.rightMargin: Theme.horizontalPageMargin
-                        anchors.verticalCenter: parent.verticalCenter
-                        icon.source: "image://theme/icon-m-remove"
-                        onClicked: {
-                            library.removeFolder(modelData)
-                            rescan()
-                        }
-                    }
-                }
-            }
-
-            Button {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                text: qsTr("Add folder")
-                onClicked: pushFolderPicker()
-            }
-
-            // ---- whitelist --------------------------------------------------
-            SectionHeader {
-                text: qsTr("Whitelist")
-            }
-
-            Label {
-                x: Theme.horizontalPageMargin
-                visible: library.whitelist.length === 0
-                text: qsTr("Empty whitelist: every supported file under a managed folder is included")
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                wrapMode: Text.Wrap
-                font.pixelSize: Theme.fontSizeExtraSmall
-                color: Theme.secondaryColor
-            }
-
-            Repeater {
-                model: library.whitelist
-
-                delegate: ListItem {
-                    width: column.width
-                    contentHeight: Theme.itemSizeSmall
-
-                    Label {
-                        x: Theme.horizontalPageMargin
-                        width: parent.width - 2 * Theme.horizontalPageMargin
-                               - Theme.iconSizeMedium
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: modelData
-                        truncationMode: TruncationMode.Fade
-                    }
-                    IconButton {
-                        anchors.right: parent.right
-                        anchors.rightMargin: Theme.horizontalPageMargin
-                        anchors.verticalCenter: parent.verticalCenter
-                        icon.source: "image://theme/icon-m-remove"
-                        onClicked: {
-                            library.removeWhitelistEntry(modelData)
-                            rescan()
-                        }
-                    }
-                }
-            }
-
-            Button {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                text: qsTr("Add whitelist entry")
-                onClicked: pushFilterPrompt("whitelist")
-            }
-
-            // ---- blacklist --------------------------------------------------
-            SectionHeader {
-                text: qsTr("Blacklist")
-            }
-
-            Repeater {
-                model: library.blacklist
-
-                delegate: ListItem {
-                    width: column.width
-                    contentHeight: Theme.itemSizeSmall
-
-                    Label {
-                        x: Theme.horizontalPageMargin
-                        width: parent.width - 2 * Theme.horizontalPageMargin
-                               - Theme.iconSizeMedium
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: modelData
-                        truncationMode: TruncationMode.Fade
-                    }
-                    IconButton {
-                        anchors.right: parent.right
-                        anchors.rightMargin: Theme.horizontalPageMargin
-                        anchors.verticalCenter: parent.verticalCenter
-                        icon.source: "image://theme/icon-m-remove"
-                        onClicked: {
-                            library.removeBlacklistEntry(modelData)
-                            rescan()
-                        }
-                    }
-                }
-            }
-
-            Button {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                text: qsTr("Add blacklist entry")
-                onClicked: pushFilterPrompt("blacklist")
-            }
-
             // ---- filtered file listing + selection ---------------------------
+            // (SH-1004: the managed folders / whitelist / blacklist editing
+            // sections moved to SettingsPage — this page is browse-only.)
             SectionHeader {
                 //: %1 = number of listed tracks
                 text: qsTr("Tracks (%1)").arg(library.tracks.length)

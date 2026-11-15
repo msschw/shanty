@@ -16,6 +16,8 @@
 #include "../../core/ports/ILibraryStore.h"
 #include "../../core/services/LibraryService.h"
 
+#include "LibraryConfigEditor.h"
+
 namespace shanty {
 
 /// Owns a working copy of LibraryConfig (loaded through ILibraryStore) and
@@ -66,6 +68,14 @@ namespace shanty {
 ///      fired once after each effective persisted mutation (after the save).
 ///      Selection changes carry no event (Phase B property bindings observe
 ///      them synchronously after the call).
+///
+///   SH-1004 (UX-15): the V1–V4/V6 editing responsibility now LIVES in
+///   LibraryConfigEditor (same compilation unit set) — the settings view
+///   model composes the same editor over the same store, so the rejection
+///   catalogue and save semantics exist in exactly ONE place and the two
+///   view models see each other's writes through the store (see the editor
+///   header). This class delegates the config commands and keeps the
+///   listing/selection logic (V5/V7) plus its own event forwarding.
 class LibraryViewModel {
 public:
     // ---- observation hooks (Qt-free; the QObject wrapper reconnects them) --
@@ -126,16 +136,12 @@ private:
     ILibraryStore& store_;
     LibraryService& library_;
 
-    LibraryConfig config_;
+    // SH-1004: the config editing lives in the shared editor (see the class
+    // comment); the events are forwarded to this class's own channels.
+    LibraryConfigEditor editor_;
+
     std::vector<std::string> tracks_;
     std::vector<std::size_t> selected_;
-
-    /// Persists the working config (exactly one save) and notifies.
-    void persist();
-    bool contains(const std::vector<std::string>& list,
-                  const std::string& path) const;
-    /// Removes the first matching entry; returns true when the list changed.
-    bool eraseFirst(std::vector<std::string>& list, const std::string& path);
 };
 
 }  // namespace shanty

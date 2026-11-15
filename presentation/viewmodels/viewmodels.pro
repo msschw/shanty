@@ -21,6 +21,7 @@ VPATH = $$PWD
 HEADERS += \
     NavigationViewModel.h \
     LibraryViewModel.h \
+    LibraryConfigEditor.h \
     PlaylistViewModel.h \
     PlayerViewModel.h \
     SettingsViewModel.h
@@ -28,6 +29,7 @@ HEADERS += \
 SOURCES += \
     NavigationViewModel.cpp \
     LibraryViewModel.cpp \
+    LibraryConfigEditor.cpp \
     PlaylistViewModel.cpp \
     PlayerViewModel.cpp \
     SettingsViewModel.cpp

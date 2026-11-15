@@ -632,15 +632,16 @@ void TestSettingsVm::libraryConfigAddFolderPersistsToTheLibraryStore() {
     FakeEffectChain chain;
     FakeAutoEqReader reader;
     FakePersistingLibraryStore libraryStore;
-    SettingsViewModel vm(store, chain, reader, libraryStore);
-    Hooks hooks;
-    hooks.attach(vm);
     // The store may start pre-populated (a config from a previous session);
-    // a fresh settings view model must LOAD it, not start empty.
+    // seed BEFORE construction: a fresh settings view model must LOAD it,
+    // not start empty.
     shanty::LibraryConfig seeded;
     seeded.folders = {"/music"};
     libraryStore.save(seeded);
     const int savesBefore = libraryStore.saveCount_;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
+    Hooks hooks;
+    hooks.attach(vm);
 
     vm.addFolder("/podcasts");
 
