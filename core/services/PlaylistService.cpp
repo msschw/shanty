@@ -140,6 +140,16 @@ const std::vector<PlaylistEntry>& PlaylistService::entries() const {
     return playlist_.entries();
 }
 
+ImportOutcome PlaylistService::resolvePlaylistFile(
+    const std::string& filePath) {
+    // SH-1005 Phase A stub (red-first): fails everything by assertion —
+    // nothing is read, nothing is parsed, nothing is applied, no hooks.
+    (void)filePath;
+    ImportOutcome outcome;
+    outcome.status = ImportOutcome::Status::UnreadableFile;
+    return outcome;
+}
+
 long long PlaylistService::totalDurationSeconds() const {
     return playlist_.totalDurationSeconds();
 }

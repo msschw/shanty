@@ -39,10 +39,11 @@
 //     no special-case strings.
 #pragma once
 
+#include <cstddef>
+#include <functional>
+#include <map>
 #include <string>
 #include <vector>
-
-#include "../core/domain/LibraryConfig.h"
 #include "../core/ports/ILibraryStore.h"
 #include "../core/ports/ITagReader.h"
 #include "../core/services/LibraryService.h"
@@ -76,8 +77,14 @@ public:
 
     /// Rebuilds the catalogue from the persisted config (decision 1): one
     /// store.load(), one scan(), one scanPlaylists(), one tag read per
-    /// track. Phase A stub: no-op (all modes stay empty — red-first).
+    /// track.
     void rebuild();
+
+    /// The display titles decided during the last rebuild (SH-1005: the
+    /// browser's track rows show them; decision 4). Exactly one entry per
+    /// track of the last rebuild — tag title, or the basename fallback.
+    /// Empty until the first rebuild.
+    const std::map<std::string, std::string>& displayTitles() const;
 
     /// The grouped modes (decision 2). Empty until the first rebuild().
     const std::vector<CatalogueGroup>& groups(CatalogueMode mode) const;
@@ -93,6 +100,8 @@ private:
     std::vector<CatalogueGroup> albums_;
     std::vector<CatalogueGroup> genres_;
     std::vector<std::string> playlists_;
+    // Decision 4 output (path → display title), rebuilt each time.
+    std::map<std::string, std::string> displayTitles_;
 };
 
 }  // namespace shanty

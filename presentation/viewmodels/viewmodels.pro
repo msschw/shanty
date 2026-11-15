@@ -23,6 +23,7 @@ HEADERS += \
     LibraryViewModel.h \
     LibraryConfigEditor.h \
     LibraryCatalogue.h \
+    LibraryBrowser.h \
     PlaylistViewModel.h \
     PlayerViewModel.h \
     SettingsViewModel.h
@@ -32,6 +33,7 @@ SOURCES += \
     LibraryViewModel.cpp \
     LibraryConfigEditor.cpp \
     LibraryCatalogue.cpp \
+    LibraryBrowser.cpp \
     PlaylistViewModel.cpp \
     PlayerViewModel.cpp \
     SettingsViewModel.cpp

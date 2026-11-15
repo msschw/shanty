@@ -4,20 +4,27 @@
 // Copyright 2026 Shanty contributors. SPDX-License-Identifier: GPL-3.0-or-later
 #include <QtTest>
 
+#include <memory>
+
 #include "FakePersistingLibraryStore.h"
 #include "FakeTagReader.h"
 #include "RecordingScanner.h"
 
 #include "core/services/LibraryService.h"
+#include "presentation/viewmodels/LibraryBrowser.h"
 #include "presentation/viewmodels/LibraryCatalogue.h"
 
+using shanty::BrowserMode;
 using shanty::CatalogueGroup;
 using shanty::CatalogueMode;
+using shanty::LibraryBrowserViewModel;
 using shanty::LibraryCatalogueViewModel;
 using shanty::LibraryConfig;
 using shanty::TagMetadata;
 
 namespace {
+
+QString asQ(const std::string& s) { return QString::fromStdString(s); }
 
 /// Shared fixture: recording scanner + persisting store + scripted reader.
 /// The store is seeded BEFORE the view model is constructed (the ctor
@@ -58,6 +65,58 @@ TagMetadata tags(const std::string& title, const std::string& artist,
     return meta;
 }
 
+// ---- SH-1005 browser fixtures ------------------------------------------------
+
+/// Browser over a living catalogue: catalogue on the heap (the browser
+/// holds a reference), rejection log, one-line rebuild passthrough.
+struct BrowserFix {
+    Vm fix;
+    std::unique_ptr<LibraryCatalogueViewModel> catalogue;
+    std::unique_ptr<LibraryBrowserViewModel> browser;
+    std::vector<std::string> invalid;
+
+    explicit BrowserFix(std::vector<std::string> tracks = {},
+                        std::map<std::string, TagMetadata> tagMap = {},
+                        std::vector<std::string> playlists = {})
+        : fix(std::move(tracks), std::move(playlists), std::move(tagMap)) {
+        catalogue.reset(new LibraryCatalogueViewModel(fix.make()));
+        browser.reset(new LibraryBrowserViewModel(*catalogue));
+        browser->onInvalid = [this](const char* reason) {
+            invalid.push_back(reason ? reason : "(null)");
+        };
+    }
+
+    void rebuild() {
+        catalogue->rebuild();
+        browser->rebuild();
+    }
+};
+
+/// The standard artists fixture: Aurora (Land: Gamma; Sky: Alpha, Beta),
+/// Beacon (Zoo: Delta), one untagged file (all Unknown buckets, title
+/// fallback "t5"). /music/t5.mp3 has NO scripted tags (clean miss).
+BrowserFix artistsFixture() {
+    std::vector<std::string> tracks = {"/music/t1.mp3", "/music/t2.mp3",
+                                       "/music/t3.mp3", "/music/t4.mp3",
+                                       "/music/t5.mp3"};
+    std::map<std::string, TagMetadata> tagMap = {
+        {"/music/t1.mp3", tags("Alpha", "Aurora", "Sky", "Pop")},
+        {"/music/t2.mp3", tags("Beta", "Aurora", "Sky", "Pop")},
+        {"/music/t3.mp3", tags("Gamma", "Aurora", "Land", "Pop")},
+        {"/music/t4.mp3", tags("Delta", "Beacon", "Zoo", "Rock")},
+    };
+    return BrowserFix(tracks, tagMap);
+}
+
+int indexOfRow(const BrowserFix& fix, const std::string& label) {
+    for (std::size_t i = 0; i < fix.browser->rows().size(); ++i) {
+        if (fix.browser->rows()[i].label == label) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
 }  // namespace
 
 class TestLibraryCatalogue : public QObject {
@@ -74,6 +133,17 @@ private slots:
     void playlistsAreFlatInScanOrder();
     void rebuildRereadsConfigAndRescansThroughTheStore();
     void tagsReadExactlyOncePerTrackPerRebuild();
+    void displayTitlesDecidedAtRebuildWithoutExtraReads();
+
+    // ---- SH-1005 (UX-16): browser state layer (red-first) --------------------
+    void browserInitialModeIsArtistsAndSetModeResetsDrillDown();
+    void browserArtistsDrillDownTwoLevelsAndBack();
+    void browserAlbumsAndGenresDrillStraightToTracks();
+    void browserPlaylistsModeListsPlaylistsFlat();
+    void browserOpenEntryOutOfRangeRejected();
+    void browserBackAtRootIsNoOp();
+    void browserRebuildResetsNavigationAndRefreshesRows();
+    void browserRowCommandsCatalogue();
 };
 
 void TestLibraryCatalogue::emptyLibraryYieldsAllModesEmpty() {
@@ -326,6 +396,217 @@ void TestLibraryCatalogue::tagsReadExactlyOncePerTrackPerRebuild() {
     QCOMPARE(fix.reader.readsFor("/music/t1.mp3"), 2);
     QCOMPARE(fix.reader.readsFor("/music/t2.mp3"), 2);
     QCOMPARE(fix.reader.callCount_, 4);
+}
+
+void TestLibraryCatalogue::displayTitlesDecidedAtRebuildWithoutExtraReads() {
+    // SH-1005: the browser's track rows show the display titles the
+    // catalogue decided at rebuild time (decision 4) — no extra tag reads.
+    Vm fix({"/music/t1.mp3", "/music/t5.mp3"},
+           {},
+           {{"/music/t1.mp3", tags("Alpha", "Aurora", "Sky", "Pop")}});
+    LibraryCatalogueViewModel vm = fix.make();
+    vm.rebuild();
+    QCOMPARE(fix.reader.callCount_, 2);  // one per track, unchanged
+    QCOMPARE(int(vm.displayTitles().size()), 2);
+    QCOMPARE(asQ(vm.displayTitles().at("/music/t1.mp3")),
+             QString("Alpha"));
+    // The untagged file falls back to the basename (Track::make rule).
+    QCOMPARE(asQ(vm.displayTitles().at("/music/t5.mp3")), QString("t5"));
+}
+
+// ---- SH-1005 (UX-16): browser state layer (red-first) ------------------------
+
+void TestLibraryCatalogue::browserInitialModeIsArtistsAndSetModeResetsDrillDown() {
+    BrowserFix fix;
+    // B1: the initial mode is Artists; rows are empty until the first
+    // rebuild (snapshot idiom).
+    QCOMPARE(fix.browser->mode(), BrowserMode::Artists);
+    QVERIFY(fix.browser->rows().empty());
+    fix.rebuild();
+    QCOMPARE(int(fix.browser->rows().size()), 3);
+    QCOMPARE(fix.browser->rows()[0].kind,
+             LibraryBrowserViewModel::Row::Kind::Category);
+    QVERIFY(fix.browser->rows()[0].label == "Aurora");
+    QVERIFY(fix.browser->rows()[1].label == "Beacon");
+    QVERIFY(fix.browser->rows()[2].label == "Unknown artist");
+
+    // Drill in, then re-select the mode → back to the root (B1).
+    fix.browser->openEntry(0);
+    QVERIFY(fix.browser->canGoBack());
+    fix.browser->setMode(BrowserMode::Artists);
+    QVERIFY(!fix.browser->canGoBack());
+    QCOMPARE(int(fix.browser->rows().size()), 3);
+
+    // B1: switching the mode resets the drill-down as well.
+    fix.browser->openEntry(0);
+    fix.browser->setMode(BrowserMode::Albums);
+    QVERIFY(!fix.browser->canGoBack());
+    // Flat album categories, case-insensitive order:
+    // Land, Sky, Unknown album, Zoo.
+    QCOMPARE(int(fix.browser->rows().size()), 4);
+    QVERIFY(fix.browser->rows()[0].label == "Land");
+    QVERIFY(fix.browser->rows()[1].label == "Sky");
+    QVERIFY(fix.browser->rows()[2].label == "Unknown album");
+    QVERIFY(fix.browser->rows()[3].label == "Zoo");
+}
+
+void TestLibraryCatalogue::browserArtistsDrillDownTwoLevelsAndBack() {
+    BrowserFix fix;
+    fix.rebuild();
+
+    // Level 1: artist → albums (owner decision: two levels).
+    fix.browser->openEntry(0);  // Aurora
+    QVERIFY(fix.browser->canGoBack());
+    QCOMPARE(int(fix.browser->rows().size()), 2);
+    QVERIFY(fix.browser->rows()[0].label == "Land");
+    QVERIFY(fix.browser->rows()[1].label == "Sky");
+    QCOMPARE(fix.browser->rows()[0].kind,
+             LibraryBrowserViewModel::Row::Kind::Category);
+
+    // Level 2: album → track rows (labels = display titles, paths ready
+    // for the play bridge).
+    fix.browser->openEntry(1);  // Sky
+    QCOMPARE(int(fix.browser->rows().size()), 2);
+    QCOMPARE(fix.browser->rows()[0].kind,
+             LibraryBrowserViewModel::Row::Kind::Track);
+    QVERIFY(fix.browser->rows()[0].label == "Alpha");
+    QVERIFY(fix.browser->rows()[0].path == "/music/t1.mp3");
+    QVERIFY(fix.browser->rows()[1].label == "Beta");
+    QVERIFY(fix.browser->rows()[1].path == "/music/t2.mp3");
+
+    // B4: a leaf level has nothing to drill into — openEntry there is a
+    // silent no-op (tap semantics belong to the bridges).
+    fix.browser->openEntry(0);
+    QCOMPARE(int(fix.browser->rows().size()), 2);
+    QVERIFY(fix.browser->rows()[0].label == "Alpha");
+    QCOMPARE(int(fix.invalid.size()), 0);
+
+    // B5: back walks the chain up one level at a time.
+    fix.browser->back();
+    QCOMPARE(int(fix.browser->rows().size()), 2);  // Aurora's albums
+    QVERIFY(fix.browser->rows()[0].label == "Land");
+    fix.browser->back();
+    QVERIFY(!fix.browser->canGoBack());
+    QCOMPARE(int(fix.browser->rows().size()), 3);  // artists root
+}
+
+void TestLibraryCatalogue::browserAlbumsAndGenresDrillStraightToTracks() {
+    BrowserFix fix;
+    fix.rebuild();
+
+    // Albums: one group level → tracks.
+    fix.browser->setMode(BrowserMode::Albums);
+    fix.browser->openEntry(1);  // Sky
+    QCOMPARE(int(fix.browser->rows().size()), 2);
+    QCOMPARE(fix.browser->rows()[0].kind,
+             LibraryBrowserViewModel::Row::Kind::Track);
+    QVERIFY(fix.browser->rows()[0].path == "/music/t1.mp3");
+    QVERIFY(fix.browser->rows()[1].path == "/music/t2.mp3");
+    fix.browser->back();
+    QCOMPARE(int(fix.browser->rows().size()), 4);
+
+    // Genres: same shape.
+    fix.browser->setMode(BrowserMode::Genres);
+    QCOMPARE(int(fix.browser->rows().size()), 3);
+    QVERIFY(fix.browser->rows()[0].label == "Pop");
+    QVERIFY(fix.browser->rows()[1].label == "Rock");
+    QVERIFY(fix.browser->rows()[2].label == "Unknown genre");
+    fix.browser->openEntry(0);  // Pop
+    QCOMPARE(int(fix.browser->rows().size()), 3);
+    QCOMPARE(fix.browser->rows()[0].kind,
+             LibraryBrowserViewModel::Row::Kind::Track);
+    QVERIFY(fix.browser->rows()[0].path == "/music/t1.mp3");
+    QVERIFY(fix.browser->rows()[1].path == "/music/t2.mp3");
+    QVERIFY(fix.browser->rows()[2].path == "/music/t3.mp3");
+}
+
+void TestLibraryCatalogue::browserPlaylistsModeListsPlaylistsFlat() {
+    BrowserFix fix({}, {},
+                   {"/music/lists/b.m3u", "/music/lists/a.m3u8"});
+    fix.rebuild();
+    fix.browser->setMode(BrowserMode::Playlists);
+
+    // Decision 2 (SH-1003) verbatim: NOT grouped, the scanner's order.
+    QCOMPARE(int(fix.browser->rows().size()), 2);
+    QCOMPARE(fix.browser->rows()[0].kind,
+             LibraryBrowserViewModel::Row::Kind::Playlist);
+    QVERIFY(fix.browser->rows()[0].label == "/music/lists/b.m3u");
+    QVERIFY(fix.browser->rows()[0].path == "/music/lists/b.m3u");
+    QVERIFY(fix.browser->rows()[1].path == "/music/lists/a.m3u8");
+    QVERIFY(!fix.browser->canGoBack());  // no group levels in this mode
+}
+
+void TestLibraryCatalogue::browserOpenEntryOutOfRangeRejected() {
+    BrowserFix fix;
+    fix.rebuild();
+
+    // B4: out-of-range is a rejection, NOT a silent no-op (house rule).
+    fix.browser->openEntry(99);
+    QCOMPARE(int(fix.invalid.size()), 1);
+    QVERIFY(fix.invalid[0] == "openEntry: index out of range");
+    QVERIFY(!fix.browser->canGoBack());
+    QCOMPARE(int(fix.browser->rows().size()), 3);  // unchanged
+
+    // An empty library: every openEntry is out of range.
+    BrowserFix empty;
+    empty.rebuild();
+    empty.browser->openEntry(0);
+    QCOMPARE(int(empty.invalid.size()), 1);
+    QVERIFY(empty.invalid[0] == "openEntry: index out of range");
+}
+
+void TestLibraryCatalogue::browserBackAtRootIsNoOp() {
+    BrowserFix fix;
+    fix.rebuild();
+    QVERIFY(!fix.browser->canGoBack());
+    fix.browser->back();  // no rejection, no change (B5)
+    QCOMPARE(int(fix.invalid.size()), 0);
+    QCOMPARE(int(fix.browser->rows().size()), 3);
+    QVERIFY(fix.browser->rows()[0].label == "Aurora");
+}
+
+void TestLibraryCatalogue::browserRebuildResetsNavigationAndRefreshesRows() {
+    BrowserFix fix;
+    fix.rebuild();
+    fix.browser->openEntry(0);
+    QVERIFY(fix.browser->canGoBack());
+
+    // The library changed (Settings added a folder with new content).
+    fix.fix.scanner.result_ = {"/music2/new.mp3"};
+    fix.fix.reader.scripted_["/music2/new.mp3"] =
+        tags("Fresh", "Solo", "Debut", "Ambient");
+    fix.rebuild();  // B7: passthrough + navigation reset
+
+    QVERIFY(!fix.browser->canGoBack());
+    QCOMPARE(fix.browser->mode(), BrowserMode::Artists);  // mode kept
+    QCOMPARE(int(fix.browser->rows().size()), 1);
+    QVERIFY(fix.browser->rows()[0].label == "Solo");
+}
+
+void TestLibraryCatalogue::browserRowCommandsCatalogue() {
+    BrowserFix fix;
+    fix.rebuild();
+
+    // B6: category rows have no commands (nothing to act on).
+    QVERIFY(fix.browser->rowCommands(0).empty());
+    QVERIFY(fix.browser->rowCommands(99).empty());  // do-not-open signal
+
+    // Track rows: the LibraryViewModel catalogue, reused verbatim.
+    fix.browser->setMode(BrowserMode::Albums);
+    fix.browser->openEntry(1);  // Sky → tracks
+    QVERIFY(fix.browser->rowCommands(0) ==
+            std::vector<shanty::LibraryViewModel::RowCommand>(
+                {shanty::LibraryViewModel::RowCommand::Play,
+                 shanty::LibraryViewModel::RowCommand::AddToQueue}));
+    QVERIFY(fix.browser->rowCommands(99).empty());
+
+    // Playlist rows: play only (queue + play via the SH-802 bridge).
+    BrowserFix lists({}, {}, {"/music/lists/x.m3u"});
+    lists.rebuild();
+    lists.browser->setMode(BrowserMode::Playlists);
+    QVERIFY(lists.browser->rowCommands(0) ==
+            std::vector<shanty::LibraryViewModel::RowCommand>(
+                {shanty::LibraryViewModel::RowCommand::Play}));
 }
 
 QTEST_MAIN(TestLibraryCatalogue)

@@ -119,6 +119,15 @@ public:
     void import(const std::string& filePath);
     void exportPlaylist(const std::string& filePath);
 
+    /// SH-1005 (UX-16): the read-only variant of the import pipeline for
+    /// the browser's playlist rows — read → parse → resolve at the
+    /// boundary (baseDir = the file's parent directory), WITHOUT applying
+    /// the result to the editing playlist and WITHOUT firing any hook.
+    /// The SH-802 bridge (playRequested) consumes the resolved entries.
+    /// Phase A stub: the UnreadableFile outcome with an empty message so
+    /// the red cases fail by assertion.
+    ImportOutcome resolvePlaylistFile(const std::string& filePath);
+
     // ---- SH-304 mutation passthrough (ONE facade for the view model) -------
     void add(const PlaylistEntry& entry);
     /// Moves the entry at `from` to index `to` (SH-304 semantics: out of

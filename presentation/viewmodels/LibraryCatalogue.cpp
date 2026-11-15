@@ -8,7 +8,6 @@
 #include <map>
 #include <utility>
 #include <vector>
-
 #include "../core/domain/Track.h"
 
 namespace shanty {
@@ -122,6 +121,7 @@ void LibraryCatalogueViewModel::rebuild() {
         albumLeaves[album].push_back(leaf);
         genreLeaves[genre].push_back(leaf);
         artistAlbums[artist][album].push_back(leaf);
+        displayTitles_[path] = title;  // SH-1005: browser track rows
     }
 
     // Albums / Genres: flat groups, label-ordered, leaf-ordered.
@@ -173,6 +173,11 @@ const std::vector<CatalogueGroup>& LibraryCatalogueViewModel::groups(
 const std::vector<std::string>& LibraryCatalogueViewModel::playlistPaths()
     const {
     return playlists_;
+}
+
+const std::map<std::string, std::string>&
+LibraryCatalogueViewModel::displayTitles() const {
+    return displayTitles_;
 }
 
 }  // namespace shanty

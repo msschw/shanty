@@ -18,6 +18,7 @@
 
 #include "services/PlaylistService.h"
 #include "presentation/viewmodels/PlaylistViewModel.h"
+#include "presentation/viewmodels/LibraryBrowser.h"
 #include "FakePlaylistCodec.h"
 
 using shanty::FakePlaylistCodec;
@@ -174,6 +175,11 @@ private slots:
     void rowCommandsOfferPlayFromHereAndRemove();
     void rowCommandsOnOutOfRangeIndexAreEmpty();
     void rowCommandsAreIndependentOfFlowAndDirtyState();
+
+    // ---- SH-1005 (UX-16): non-mutating playlist resolve (red-first) ----------
+    void resolvePlaylistFileResolvesEntriesWithoutMutating();
+    void resolvePlaylistFileUnreadableFileStatus();
+    void resolvePlaylistFileParseErrorsCarriedVerbatim();
 };
 
 void TestPlaylistVM::freshViewModelIsIdleWithNoEvents() {
@@ -1020,6 +1026,86 @@ void TestPlaylistVM::rowCommandsAreIndependentOfFlowAndDirtyState() {
         QCOMPARE(commands[0], PlaylistViewModel::RowCommand::PlayFromHere);
         QCOMPARE(commands[1], PlaylistViewModel::RowCommand::Remove);
     }
+}
+
+// ---- SH-1005 (UX-16): non-mutating playlist resolve --------------------------
+// The browser's playlist rows queue + play through the SH-802 bridge; the
+// bridge needs the m3u ENTRY PATHS of an arbitrary .m3u file WITHOUT
+// touching the editing playlist (the Playlist page stays the editing
+// surface). resolvePlaylistFile reuses the import pipeline (read → parse →
+// resolve at the boundary) minus the mutation and minus the hooks.
+
+void TestPlaylistVM::resolvePlaylistFileResolvesEntriesWithoutMutating() {
+    Fixture f;
+    shanty::ParseResult parsed;
+    parsed.playlist.add(pe("song.mp3", "Song", 180));
+    parsed.playlist.add(pe("/absolute/second.flac", "Second", 60));
+    f.codec.nextParse = parsed;
+    f.seedImportFile();
+
+    const shanty::ImportOutcome outcome =
+        f.service.resolvePlaylistFile(f.importPath());
+
+    QCOMPARE(outcome.status, shanty::ImportOutcome::Status::Success);
+    QCOMPARE(outcome.playlist.count(), size_t(2));
+    if (outcome.playlist.count() == 2) {
+        // D3 boundary resolution against the .m3u's parent directory.
+        QCOMPARE(asQ(outcome.playlist.entries().at(0).path),
+                 f.importQPath().section('/', 0, -2) +
+                     QString::fromLatin1("/song.mp3"));
+        QCOMPARE(asQ(outcome.playlist.entries().at(0).title),
+                 QString::fromLatin1("Song"));
+        QCOMPARE(asQ(outcome.playlist.entries().at(1).path),
+                 QString::fromLatin1("/absolute/second.flac"));
+    }
+    // NON-mutating: the editing playlist is untouched and NO hooks fired
+    // (no onImportFinished, no onPlaylistChanged).
+    QCOMPARE(f.service.count(), size_t(0));
+    QVERIFY(f.order.empty());
+    // The codec was driven exactly once with the requested path.
+    QCOMPARE(f.codec.parseFilePaths.size(), size_t(1));
+    QCOMPARE(asQ(f.codec.parseFilePaths.front()), f.importQPath());
+}
+
+void TestPlaylistVM::resolvePlaylistFileUnreadableFileStatus() {
+    Fixture f;
+    const std::string missing = f.dir.filePath("nope.m3u").toStdString();
+
+    const shanty::ImportOutcome outcome = f.service.resolvePlaylistFile(missing);
+
+    QCOMPARE(outcome.status, shanty::ImportOutcome::Status::UnreadableFile);
+    QVERIFY(outcome.playlist.count() == 0);
+    QCOMPARE(asQ(outcome.errorMessage), asQ(missing) +
+                 QString::fromLatin1(": cannot open for reading"));
+    QCOMPARE(f.codec.parseFilePaths.size(), size_t(0));  // codec not reached
+    QVERIFY(f.order.empty());
+}
+
+void TestPlaylistVM::resolvePlaylistFileParseErrorsCarriedVerbatim() {
+    Fixture f;
+    shanty::ParseResult parsed;
+    shanty::ParseError error;
+    error.code = shanty::ParseError::Code::NotAPlaylist;
+    error.message = "no playlist structure";
+    error.line = 3;
+    parsed.errors.push_back(error);
+    f.codec.nextParse = parsed;
+    f.seedImportFile();
+
+    const shanty::ImportOutcome outcome =
+        f.service.resolvePlaylistFile(f.importPath());
+
+    QCOMPARE(outcome.status, shanty::ImportOutcome::Status::ParseErrors);
+    QCOMPARE(outcome.errors.size(), size_t(1));
+    if (outcome.errors.size() == 1) {
+        QCOMPARE(outcome.errors.front().code,
+                 shanty::ParseError::Code::NotAPlaylist);
+        QCOMPARE(asQ(outcome.errors.front().message),
+                 QString::fromLatin1("no playlist structure"));
+        QCOMPARE(outcome.errors.front().line, 3);
+    }
+    QCOMPARE(f.service.count(), size_t(0));  // nothing applied
+    QVERIFY(f.order.empty());
 }
 
 QTEST_MAIN(TestPlaylistVM)
