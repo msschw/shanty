@@ -97,6 +97,8 @@
 
 #include "../../core/domain/AutoEqParseResult.h"
 #include "../../core/domain/EqualizerProfile.h"
+#include "../../core/domain/LibraryConfig.h"
+#include "../../core/ports/ILibraryStore.h"
 #include "../../core/services/SettingsService.h"
 
 namespace shanty {
@@ -112,9 +114,13 @@ public:
     ///     SettingsService, which the view model constructs over it);
     /// @param chain the EQ effect chain the view model drives (decisions 3
     ///     and 7); the view model never drives any transport;
-    /// @param reader the AutoEq profile reader (decision 5).
+    /// @param reader the AutoEq profile reader (decision 5);
+    /// @param libraryStore the library-config persistence (SH-1004, UX-15):
+    ///     the SAME ILibraryStore the LibraryViewModel uses — the single
+    ///     write path for the managed folders / whitelist / blacklist, so
+    ///     the two view models see each other's writes after a reload.
     SettingsViewModel(ISettingsStore& store, IEffectChain& chain,
-                      IAutoEqReader& reader);
+                      IAutoEqReader& reader, ILibraryStore& libraryStore);
 
     /// Store key of the persisted current-profile selection (decision 2).
     static const char* currentKey();
@@ -164,6 +170,26 @@ public:
     void importAutoEqProfile(const std::string& name, const std::string& data,
                              const std::string& filePath = std::string());
 
+    // ---- library configuration (SH-1004, UX-15) -----------------------------
+    // The settings side owns the managed-folders / whitelist / blacklist
+    // editing (owner direction 2026-11-14: library management lives ONLY in
+    // Settings). The commands reuse the LibraryViewModel rejection catalogue
+    // and save semantics (one shared editing implementation — see
+    // LibraryConfigEditor in Phase B); rejections fire onRejected so the
+    // existing toast mapping surfaces them. Phase A stubs: no-ops so the
+    // red-first cases fail by assertion.
+    /// The working library config as loaded/edited by this view model.
+    const LibraryConfig& libraryConfig() const;
+    /// Re-reads the working config through the store (the library side's
+    /// reload() analogue; no save, no event).
+    void reloadLibraryConfig();
+    void addFolder(const std::string& path);
+    void removeFolder(const std::string& path);
+    void addWhitelistEntry(const std::string& path);
+    void removeWhitelistEntry(const std::string& path);
+    void addBlacklistEntry(const std::string& path);
+    void removeBlacklistEntry(const std::string& path);
+
 private:
     void rejected(const char* reason);
     const EqualizerProfile* findProfile(const std::string& name) const;
@@ -171,9 +197,13 @@ private:
     ISettingsStore& store_;
     IEffectChain& chain_;
     IAutoEqReader& reader_;
+    ILibraryStore& libraryStore_;
     SettingsService profileService_;
     std::vector<EqualizerProfile> profiles_;
     std::string currentName_;
+
+    // SH-1004 Phase A stub backing: always empty (red-first).
+    LibraryConfig libraryConfig_;
 };
 
 }  // namespace shanty

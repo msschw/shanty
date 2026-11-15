@@ -27,10 +27,12 @@ const char kCurrentKey[] = "equalizer/current";
 const char* SettingsViewModel::currentKey() { return kCurrentKey; }
 
 SettingsViewModel::SettingsViewModel(ISettingsStore& store, IEffectChain& chain,
-                                     IAutoEqReader& reader)
+                                     IAutoEqReader& reader,
+                                     ILibraryStore& libraryStore)
     : store_(store),
       chain_(chain),
       reader_(reader),
+      libraryStore_(libraryStore),
       profileService_(store) {
     // Decision 6: construction IS the reload — profiles come from the
     // service, the selection from the view model's own key.
@@ -262,6 +264,37 @@ const EqualizerProfile* SettingsViewModel::findProfile(
         }
     }
     return nullptr;
+}
+
+// ---- SH-1004 (UX-15): library-config commands — Phase A stubs (red-first).
+// Every stub is a no-op: nothing is saved, nothing is rejected, and the
+// exposed config stays empty so the red cases fail by assertion. Phase B
+// delegates to the shared editing implementation (LibraryConfigEditor).
+
+const LibraryConfig& SettingsViewModel::libraryConfig() const {
+    return libraryConfig_;
+}
+
+void SettingsViewModel::reloadLibraryConfig() {}
+
+void SettingsViewModel::addFolder(const std::string& path) { (void)path; }
+
+void SettingsViewModel::removeFolder(const std::string& path) { (void)path; }
+
+void SettingsViewModel::addWhitelistEntry(const std::string& path) {
+    (void)path;
+}
+
+void SettingsViewModel::removeWhitelistEntry(const std::string& path) {
+    (void)path;
+}
+
+void SettingsViewModel::addBlacklistEntry(const std::string& path) {
+    (void)path;
+}
+
+void SettingsViewModel::removeBlacklistEntry(const std::string& path) {
+    (void)path;
 }
 
 }  // namespace shanty

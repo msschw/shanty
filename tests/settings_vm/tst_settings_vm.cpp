@@ -32,9 +32,15 @@
 #include "fakes/FakeEffectChain.h"
 
 #include "FakeAutoEqReader.h"
+#include "FakePersistingLibraryStore.h"
 #include "FakeSettingsStore.h"
 #include "presentation/viewmodels/SettingsViewModel.h"
 #include "services/SettingsService.h"
+
+#include "core/services/LibraryService.h"
+#include "presentation/viewmodels/LibraryViewModel.h"
+
+#include "fakes/FakeScanner.h"
 
 using shanty::AutoEqError;
 using shanty::AutoEqParseResult;
@@ -42,6 +48,7 @@ using shanty::EqualizerProfile;
 using shanty::ProfileSource;
 using shanty::SettingsService;
 using shanty::SettingsViewModel;
+using shanty::LibraryConfig;
 
 namespace {
 
@@ -114,6 +121,12 @@ private slots:
     void importInvalidFileForwardsStructuredErrors();
     void importOutOfRangeGainsNotPersisted();
     void changesSurviveReloadThroughSameStore();
+    // SH-1004 (UX-15): library-config commands on the settings side
+    void libraryConfigAddFolderPersistsToTheLibraryStore();
+    void libraryConfigFolderValidationVerbatim();
+    void libraryConfigFilterValidationAndSetSemantics();
+    void libraryConfigRemovalsAreIdempotentNoOps();
+    void libraryConfigCrossVisibilityBothWaysThroughOneStore();
 };
 
 void TestSettingsVm::constructorLoadsProfilesFromStore() {
@@ -123,7 +136,8 @@ void TestSettingsVm::constructorLoadsProfilesFromStore() {
     FakeEffectChain chain;
     FakeAutoEqReader reader;
 
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     Hooks hooks;
     hooks.attach(vm);
 
@@ -143,7 +157,8 @@ void TestSettingsVm::createPersistsViaServiceAndAutoSelects() {
     FakeSettingsStore store;
     FakeEffectChain chain;
     FakeAutoEqReader reader;
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     Hooks hooks;
     hooks.attach(vm);
 
@@ -179,7 +194,8 @@ void TestSettingsVm::createWithEmptyNameRejected() {
     FakeSettingsStore store;
     FakeEffectChain chain;
     FakeAutoEqReader reader;
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     Hooks hooks;
     hooks.attach(vm);
 
@@ -196,7 +212,8 @@ void TestSettingsVm::createWithExistingNameRejected() {
     seedProfile(store, "taken", {1.0, 2.0});
     FakeEffectChain chain;
     FakeAutoEqReader reader;
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     Hooks hooks;
     hooks.attach(vm);
 
@@ -214,7 +231,8 @@ void TestSettingsVm::renameMovesProfileAndKeepsSelection() {
     seedProfile(store, "draft", {+1.5, -2.5});
     FakeEffectChain chain;
     FakeAutoEqReader reader;
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     Hooks hooks;
     hooks.attach(vm);
     vm.selectProfile("draft");
@@ -257,7 +275,8 @@ void TestSettingsVm::renameToExistingNameRejected() {
     seedProfile(store, "b", {2.0, 2.0});
     FakeEffectChain chain;
     FakeAutoEqReader reader;
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     Hooks hooks;
     hooks.attach(vm);
 
@@ -275,7 +294,8 @@ void TestSettingsVm::deleteClearsSelectionOfDeletedProfile() {
     seedProfile(store, "second", {1.0});
     FakeEffectChain chain;
     FakeAutoEqReader reader;
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     Hooks hooks;
     hooks.attach(vm);
     vm.selectProfile("second");
@@ -302,7 +322,8 @@ void TestSettingsVm::deleteUnknownProfileRejected() {
     seedProfile(store, "real", {0.0});
     FakeEffectChain chain;
     FakeAutoEqReader reader;
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     Hooks hooks;
     hooks.attach(vm);
 
@@ -321,7 +342,8 @@ void TestSettingsVm::selectPersistsAndNotifies() {
     seedProfile(store, "two", {1.0});
     FakeEffectChain chain;
     FakeAutoEqReader reader;
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     Hooks hooks;
     hooks.attach(vm);
 
@@ -346,7 +368,8 @@ void TestSettingsVm::selectUnknownProfileRejected() {
     seedProfile(store, "one", {0.0});
     FakeEffectChain chain;
     FakeAutoEqReader reader;
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     Hooks hooks;
     hooks.attach(vm);
 
@@ -364,7 +387,8 @@ void TestSettingsVm::applySendsExactGainsToChainWithoutStoreWrites() {
     seedProfile(store, "smile", {+3.5, -1.0, 0.0, +6.25, -8.0});
     FakeEffectChain chain;
     FakeAutoEqReader reader;
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     vm.selectProfile("smile");
 
     const int writesBefore = int(store.writeCalls.size());
@@ -384,7 +408,8 @@ void TestSettingsVm::applyWithoutSelectionRejected() {
     seedProfile(store, "idle", {1.0, 2.0});
     FakeEffectChain chain;
     FakeAutoEqReader reader;
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     Hooks hooks;
     hooks.attach(vm);
 
@@ -405,7 +430,8 @@ void TestSettingsVm::applyIsSizedToTheProfileBandCount() {
     seedProfile(store, "narrow", {1.5, -2.5, 3.5});
     FakeEffectChain chain;
     FakeAutoEqReader reader;
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     vm.selectProfile("narrow");
 
     vm.applyCurrentProfile();
@@ -422,7 +448,8 @@ void TestSettingsVm::resetBypassesAndFlattensSelectedProfile() {
     seedProfile(store, "colored", {+4.0, -4.0, +1.0});
     FakeEffectChain chain;
     FakeAutoEqReader reader;
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     vm.selectProfile("colored");
 
     vm.resetEqualizer();
@@ -437,7 +464,8 @@ void TestSettingsVm::resetWithoutSelectionFlattensDefaultBandCount() {
     FakeSettingsStore store;
     FakeEffectChain chain;
     FakeAutoEqReader reader;
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
 
     vm.resetEqualizer();
 
@@ -460,7 +488,8 @@ void TestSettingsVm::importDelegatesToReaderAndPersistsImportedProfile() {
     // reader (Imported by contract).
     reader.next.profile = EqualizerProfile::makeWithSource(
         std::string(), {-0.2, +1.5, -3.2}, ProfileSource::Imported);
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     Hooks hooks;
     hooks.attach(vm);
 
@@ -500,7 +529,8 @@ void TestSettingsVm::importInvalidFileForwardsStructuredErrors() {
                     "spellings",
                     3};
     reader.next.errors.push_back(bad);
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     Hooks hooks;
     hooks.attach(vm);
 
@@ -528,7 +558,8 @@ void TestSettingsVm::importOutOfRangeGainsNotPersisted() {
         std::string(), {20.0, -2.0}, ProfileSource::Imported);
     QVERIFY(!reader.next.profile.isValid());
     QVERIFY(reader.next.ok());  // parse itself is clean
-    SettingsViewModel vm(store, chain, reader);
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
     Hooks hooks;
     hooks.attach(vm);
 
@@ -553,7 +584,8 @@ void TestSettingsVm::changesSurviveReloadThroughSameStore() {
     FakeAutoEqReader readerA;
     readerA.next.profile = EqualizerProfile::makeWithSource(
         std::string(), {+0.5, -0.5, +1.0}, ProfileSource::Imported);
-    SettingsViewModel vmA(store, chainA, readerA);
+    FakePersistingLibraryStore storeLibraryStore;
+    SettingsViewModel vmA(store, chainA, readerA, storeLibraryStore);
     vmA.createProfile("manual mixed", 2);
     vmA.importAutoEqProfile("imported 3", "GraphicEQ: 20 0.5; 21 -0.5; 22 1.0");
     vmA.selectProfile("seeded");
@@ -563,7 +595,8 @@ void TestSettingsVm::changesSurviveReloadThroughSameStore() {
     // "Reload": a fresh view model over the SAME store re-reads state.
     FakeEffectChain chainB;
     FakeAutoEqReader readerB;
-    SettingsViewModel vmB(store, chainB, readerB);
+    FakePersistingLibraryStore libraryStoreB;
+    SettingsViewModel vmB(store, chainB, readerB, libraryStoreB);
 
     QCOMPARE(int(vmB.profiles().size()), 3);
     QCOMPARE(vmB.profiles()[0].name(), std::string("seeded"));
@@ -585,6 +618,150 @@ void TestSettingsVm::changesSurviveReloadThroughSameStore() {
     QCOMPARE(readerB.readCalls, readsBefore);  // applying needs no import
     QVERIFY(chainB.lastGains ==
             std::vector<double>({+0.5, -0.5, +1.0}));
+}
+
+// ---- SH-1004 (UX-15): library-config commands on the settings side ----------
+// Owner direction (2026-11-14): library management lives ONLY in Settings.
+// The settings view model edits the SAME LibraryConfig persistence the
+// library side uses (single write path, one shared editing implementation —
+// the LibraryViewModel rejection catalogue strings verbatim), and the two
+// view models see each other's writes through their reload paths.
+
+void TestSettingsVm::libraryConfigAddFolderPersistsToTheLibraryStore() {
+    FakeSettingsStore store;
+    FakeEffectChain chain;
+    FakeAutoEqReader reader;
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
+    Hooks hooks;
+    hooks.attach(vm);
+    // The store may start pre-populated (a config from a previous session);
+    // a fresh settings view model must LOAD it, not start empty.
+    shanty::LibraryConfig seeded;
+    seeded.folders = {"/music"};
+    libraryStore.save(seeded);
+    const int savesBefore = libraryStore.saveCount_;
+
+    vm.addFolder("/podcasts");
+
+    // No rejection, one persisted mutation, and the working config shows it.
+    QCOMPARE(int(hooks.rejected.size()), 0);
+    QCOMPARE(int(vm.libraryConfig().folders.size()), 2);
+    QVERIFY(vm.libraryConfig().folders[1] == "/podcasts");
+    QCOMPARE(libraryStore.saveCount_, savesBefore + 1);
+    // The mutation is DURABLE: a fresh load of the store returns it.
+    QVERIFY(shanty::LibraryConfig(vm.libraryConfig()) == libraryStore.load());
+}
+
+void TestSettingsVm::libraryConfigFolderValidationVerbatim() {
+    FakeSettingsStore store;
+    FakeEffectChain chain;
+    FakeAutoEqReader reader;
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
+    Hooks hooks;
+    hooks.attach(vm);
+    const int savesBefore = libraryStore.saveCount_;
+
+    vm.addFolder("");
+    // The LibraryViewModel catalogue string, verbatim, through the settings
+    // rejection channel (the existing toast mapping).
+    QCOMPARE(int(hooks.rejected.size()), 1);
+    QVERIFY(hooks.rejected[0] == "addFolder: empty path");
+    QCOMPARE(libraryStore.saveCount_, savesBefore);  // rejected = no save
+
+    vm.addFolder("/music");
+    vm.addFolder("/music");
+    QCOMPARE(int(hooks.rejected.size()), 2);
+    QVERIFY(hooks.rejected[1] == "addFolder: already managed");
+    QCOMPARE(int(vm.libraryConfig().folders.size()), 1);
+    QCOMPARE(libraryStore.saveCount_, savesBefore + 1);
+}
+
+void TestSettingsVm::libraryConfigFilterValidationAndSetSemantics() {
+    FakeSettingsStore store;
+    FakeEffectChain chain;
+    FakeAutoEqReader reader;
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
+    Hooks hooks;
+    hooks.attach(vm);
+    const int savesBefore = libraryStore.saveCount_;
+
+    // Empty entries are rejected with the catalogue strings, verbatim.
+    vm.addWhitelistEntry("");
+    vm.addBlacklistEntry("");
+    QCOMPARE(int(hooks.rejected.size()), 2);
+    QVERIFY(hooks.rejected[0] == "addWhitelistEntry: empty path");
+    QVERIFY(hooks.rejected[1] == "addBlacklistEntry: empty path");
+    QCOMPARE(libraryStore.saveCount_, savesBefore);
+
+    // Set semantics: a duplicate filter entry is a silent idempotent no-op
+    // (no rejection, no save) — the V3 rule, shared verbatim.
+    vm.addWhitelistEntry("/music/fav");
+    vm.addWhitelistEntry("/music/fav");
+    vm.addBlacklistEntry("/music/skip");
+    vm.addBlacklistEntry("/music/skip");
+    QCOMPARE(int(hooks.rejected.size()), 2);  // no new rejections
+    QCOMPARE(int(vm.libraryConfig().whitelist.size()), 1);
+    QCOMPARE(int(vm.libraryConfig().blacklist.size()), 1);
+    QCOMPARE(libraryStore.saveCount_, savesBefore + 2);  // one save per add
+}
+
+void TestSettingsVm::libraryConfigRemovalsAreIdempotentNoOps() {
+    FakeSettingsStore store;
+    FakeEffectChain chain;
+    FakeAutoEqReader reader;
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
+    Hooks hooks;
+    hooks.attach(vm);
+
+    // Removing a missing entry is a silent no-op across all three lists.
+    vm.removeFolder("/nope");
+    vm.removeWhitelistEntry("/nope");
+    vm.removeBlacklistEntry("/nope");
+    QCOMPARE(int(hooks.rejected.size()), 0);
+    QCOMPARE(libraryStore.saveCount_, 0);
+
+    // Adding then removing a folder persists both transitions.
+    vm.addFolder("/music");
+    vm.removeFolder("/music");
+    QCOMPARE(libraryStore.saveCount_, 2);
+    QCOMPARE(int(vm.libraryConfig().folders.size()), 0);
+    // And a config that round-trips through reload keeps the removal.
+    vm.reloadLibraryConfig();
+    QCOMPARE(int(vm.libraryConfig().folders.size()), 0);
+}
+
+void TestSettingsVm::libraryConfigCrossVisibilityBothWaysThroughOneStore() {
+    // THE single-write-path contract: two view models (settings side and
+    // library side) over ONE store see each other's writes after a reload.
+    FakeSettingsStore store;
+    FakeEffectChain chain;
+    FakeAutoEqReader reader;
+    FakePersistingLibraryStore libraryStore;
+    SettingsViewModel vm(store, chain, reader, libraryStore);
+
+    // A library view model over the SAME store (a fake scanner suffices —
+    // the cross-visibility contract is about the CONFIG, not the listing).
+    FakeScanner scanner({});
+    shanty::LibraryService libraryService(scanner);
+    shanty::LibraryViewModel libraryVm(libraryStore, libraryService);
+
+    // Settings side writes → library side sees it after reload().
+    vm.addFolder("/music");
+    libraryVm.reload();
+    QCOMPARE(int(libraryVm.config().folders.size()), 1);
+    QVERIFY(libraryVm.config().folders[0] == "/music");
+
+    // Library side writes → settings side sees it after reloadLibraryConfig().
+    libraryVm.addBlacklistEntry("/music/skip");
+    vm.reloadLibraryConfig();
+    QCOMPARE(int(vm.libraryConfig().blacklist.size()), 1);
+    QVERIFY(vm.libraryConfig().blacklist[0] == "/music/skip");
+    // ... and the settings side's earlier write is still there for it.
+    QCOMPARE(int(vm.libraryConfig().folders.size()), 1);
 }
 
 QTEST_MAIN(TestSettingsVm)
