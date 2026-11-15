@@ -53,15 +53,18 @@
 #include "adapters/settings/QSettingsSettingsStore.h"
 #include "adapters/store/FileIndexStore.h"
 #include "adapters/store/QueueStateStore.h"  // SH-805 (UX-4) session store
+#include "adapters/taglib/TagLibReader.h"  // SH-1001 tag reader adapter
 #include "core/playback/PlaybackController.h"
 #include "core/playback/PlaybackQueue.h"
 #include "core/services/LibraryService.h"
 #include "core/services/PlaylistService.h"
+#include "controllers/LibraryCatalogueFacade.h"
 #include "controllers/LibraryFacade.h"
 #include "controllers/NavigationFacade.h"
 #include "controllers/PlayerFacade.h"
 #include "controllers/PlaylistFacade.h"
 #include "controllers/SettingsFacade.h"
+#include "presentation/viewmodels/LibraryCatalogue.h"
 #include "presentation/viewmodels/LibraryViewModel.h"
 #include "presentation/viewmodels/NavigationViewModel.h"
 #include "presentation/viewmodels/PlayerViewModel.h"
@@ -102,6 +105,13 @@ int main(int argc, char *argv[])
     // ---- view models (pure C++; callbacks are mirrored by the facades) ------
     NavigationViewModel navigationViewModel;
     LibraryViewModel libraryViewModel(libraryStore, libraryService);
+    // SH-1003 (UX-14): the catalogue — grouping of the SAME scan pipeline
+    // over tag metadata for the media browser's view modes (SH-1005). It
+    // shares the library-config store (cross-visibility read path) and the
+    // library service with the library view model above.
+    TagLibReader tagReader;
+    LibraryCatalogueViewModel catalogueViewModel(libraryStore, libraryService,
+                                                 tagReader);
     PlaylistViewModel playlistViewModel(playlistService);
     PlayerViewModel playerViewModel(controller, queue);
     // SettingsViewModel is owned by SettingsFacade (SH-D605-B1: the facade
@@ -128,6 +138,9 @@ int main(int argc, char *argv[])
         application.data());
     LibraryFacade *library = new LibraryFacade(
         libraryViewModel, application.data());
+    // SH-1003 (UX-14): the catalogue facade for the media browser (SH-1005).
+    LibraryCatalogueFacade *catalogue = new LibraryCatalogueFacade(
+        catalogueViewModel, application.data());
     PlaylistFacade *playlist = new PlaylistFacade(
         playlistViewModel, application.data());
     PlayerFacade *player = new PlayerFacade(
@@ -195,6 +208,7 @@ int main(int argc, char *argv[])
     // no collision.
     rootContext->setContextProperty(QStringLiteral("navigationFacade"), navigation);
     rootContext->setContextProperty(QStringLiteral("library"), library);
+    rootContext->setContextProperty(QStringLiteral("catalogue"), catalogue);
     rootContext->setContextProperty(QStringLiteral("playlist"), playlist);
     rootContext->setContextProperty(QStringLiteral("player"), player);
     rootContext->setContextProperty(QStringLiteral("settings"), settings);

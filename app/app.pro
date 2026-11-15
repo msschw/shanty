@@ -55,6 +55,7 @@ INCLUDEPATH += $$PWD/../core
 HEADERS += \
     controllers/NavigationFacade.h \
     controllers/LibraryFacade.h \
+    controllers/LibraryCatalogueFacade.h \
     controllers/PlaylistFacade.h \
     controllers/PlayerFacade.h \
     controllers/SettingsFacade.h \
@@ -63,6 +64,7 @@ HEADERS += \
 SOURCES += shanty.cpp \
     controllers/NavigationFacade.cpp \
     controllers/LibraryFacade.cpp \
+    controllers/LibraryCatalogueFacade.cpp \
     controllers/PlaylistFacade.cpp \
     controllers/PlayerFacade.cpp \
     controllers/SettingsFacade.cpp
@@ -72,6 +74,10 @@ SOURCES += shanty.cpp \
 LIBS += -L$$OUT_PWD/../presentation/viewmodels -lshanty-viewmodels
 LIBS += -L$$OUT_PWD/../adapters -lshanty-adapters
 LIBS += -L$$OUT_PWD/../core -lshanty-core
+# SH-1003 (UX-14): the app composes TagLibReader (SH-1001) into the
+# catalogue; the taglib symbols come through the same PKGCONFIG the
+# adapters archive was built with.
+PKGCONFIG += taglib
 
 # The adapters static lib's device variant (HAVE_GSTREAMER, see
 # adapters.pro) references gstreamer-1.0 symbols; the gst runtime must be

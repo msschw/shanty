@@ -157,12 +157,16 @@ void TestLibraryCatalogue::missingTagsLandInVerbatimUnknownBuckets() {
     QVERIFY(artists[1].children[0].paths ==
             std::vector<std::string>({"/music/untagged.mp3"}));
 
-    // Albums mode: the untagged file sits in "Unknown album".
+    // Albums mode: both files lack an album tag → ONE flat "Unknown album"
+    // group holding both, leaf-ordered by display title ("Solo" then the
+    // untagged basename "untagged").
     const std::vector<CatalogueGroup>& albums =
         vm.groups(CatalogueMode::Albums);
-    QCOMPARE(int(albums.size()), 2);
+    QCOMPARE(int(albums.size()), 1);
     QVERIFY(albums[0].label == LibraryCatalogueViewModel::unknownAlbumLabel());
-    QVERIFY(albums[0].paths == std::vector<std::string>({"/music/untagged.mp3"}));
+    QVERIFY(albums[0].paths ==
+            std::vector<std::string>({"/music/artonly.mp3",
+                                      "/music/untagged.mp3"}));
 
     // Genres mode: both files lack a genre → one "Unknown genre" group.
     const std::vector<CatalogueGroup>& genres =
@@ -200,12 +204,14 @@ void TestLibraryCatalogue::
     tracksOrderByDisplayTitleCaseInsensitiveWithBasenameFallback() {
     // Decision 4/5: display title = tag title, falling back to the basename
     // without extension (Track::make rule); ordering case-insensitive.
+    // All three files share the album tag "Mixed"; "fall" has NO title tag
+    // (empty title field) → its display title comes from the basename.
     Vm fix({"/music/mix/fall.mp3", "/music/mix/zeta.mp3",
             "/music/mix/Zebra.mp3"},
            {},
-           {{"/music/mix/zeta.mp3", tags("zeta", "One", "Mixed", "")},
+           {{"/music/mix/fall.mp3", tags("", "One", "Mixed", "")},
+            {"/music/mix/zeta.mp3", tags("zeta", "One", "Mixed", "")},
             {"/music/mix/Zebra.mp3", tags("Zebra", "One", "Mixed", "")}});
-    // /music/mix/fall.mp3 is untagged → display title "fall" (basename).
     LibraryCatalogueViewModel vm = fix.make();
     vm.rebuild();
 
