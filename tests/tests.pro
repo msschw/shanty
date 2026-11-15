@@ -50,3 +50,7 @@ SUBDIRS += eq_mapping
 # SH-1001 (SH-E10 UX-12): tag metadata reader port + taglib adapter
 # (committed real-file fixtures under tests/fixtures/tags).
 SUBDIRS += tag_reader
+
+# SH-1003 (SH-E10 UX-14): library catalogue view model (media-browser
+# grouping over tag metadata; Artists/Albums/Genres/Playlists modes).
+SUBDIRS += library_catalogue
