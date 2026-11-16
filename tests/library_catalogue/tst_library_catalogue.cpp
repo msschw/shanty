@@ -417,7 +417,7 @@ void TestLibraryCatalogue::displayTitlesDecidedAtRebuildWithoutExtraReads() {
 // ---- SH-1005 (UX-16): browser state layer (red-first) ------------------------
 
 void TestLibraryCatalogue::browserInitialModeIsArtistsAndSetModeResetsDrillDown() {
-    BrowserFix fix;
+    BrowserFix fix = artistsFixture();
     // B1: the initial mode is Artists; rows are empty until the first
     // rebuild (snapshot idiom).
     QCOMPARE(fix.browser->mode(), BrowserMode::Artists);
@@ -451,7 +451,7 @@ void TestLibraryCatalogue::browserInitialModeIsArtistsAndSetModeResetsDrillDown(
 }
 
 void TestLibraryCatalogue::browserArtistsDrillDownTwoLevelsAndBack() {
-    BrowserFix fix;
+    BrowserFix fix = artistsFixture();
     fix.rebuild();
 
     // Level 1: artist → albums (owner decision: two levels).
@@ -491,7 +491,7 @@ void TestLibraryCatalogue::browserArtistsDrillDownTwoLevelsAndBack() {
 }
 
 void TestLibraryCatalogue::browserAlbumsAndGenresDrillStraightToTracks() {
-    BrowserFix fix;
+    BrowserFix fix = artistsFixture();
     fix.rebuild();
 
     // Albums: one group level → tracks.
@@ -537,7 +537,7 @@ void TestLibraryCatalogue::browserPlaylistsModeListsPlaylistsFlat() {
 }
 
 void TestLibraryCatalogue::browserOpenEntryOutOfRangeRejected() {
-    BrowserFix fix;
+    BrowserFix fix = artistsFixture();
     fix.rebuild();
 
     // B4: out-of-range is a rejection, NOT a silent no-op (house rule).
@@ -556,7 +556,7 @@ void TestLibraryCatalogue::browserOpenEntryOutOfRangeRejected() {
 }
 
 void TestLibraryCatalogue::browserBackAtRootIsNoOp() {
-    BrowserFix fix;
+    BrowserFix fix = artistsFixture();
     fix.rebuild();
     QVERIFY(!fix.browser->canGoBack());
     fix.browser->back();  // no rejection, no change (B5)
@@ -566,12 +566,17 @@ void TestLibraryCatalogue::browserBackAtRootIsNoOp() {
 }
 
 void TestLibraryCatalogue::browserRebuildResetsNavigationAndRefreshesRows() {
-    BrowserFix fix;
+    BrowserFix fix = artistsFixture();
     fix.rebuild();
     fix.browser->openEntry(0);
     QVERIFY(fix.browser->canGoBack());
 
     // The library changed (Settings added a folder with new content).
+    // The folder must be persisted like any settings-side add (SH-202:
+    // a scanner result is not a listing until the folder is managed).
+    LibraryConfig updated;
+    updated.folders = {"/music", "/music2"};
+    fix.fix.store.save(updated);
     fix.fix.scanner.result_ = {"/music2/new.mp3"};
     fix.fix.reader.scripted_["/music2/new.mp3"] =
         tags("Fresh", "Solo", "Debut", "Ambient");
@@ -584,7 +589,7 @@ void TestLibraryCatalogue::browserRebuildResetsNavigationAndRefreshesRows() {
 }
 
 void TestLibraryCatalogue::browserRowCommandsCatalogue() {
-    BrowserFix fix;
+    BrowserFix fix = artistsFixture();
     fix.rebuild();
 
     // B6: category rows have no commands (nothing to act on).

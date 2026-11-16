@@ -9,8 +9,9 @@
 
 namespace shanty {
 
-PlaylistFacade::PlaylistFacade(PlaylistViewModel& viewModel, QObject* parent)
-    : QObject(parent), viewModel_(viewModel) {
+PlaylistFacade::PlaylistFacade(PlaylistViewModel& viewModel,
+                               PlaylistService& service, QObject* parent)
+    : QObject(parent), viewModel_(viewModel), service_(service) {
     // Mirror the view model's std::function hooks to Qt signals.
     viewModel_.onFlowChanged = [this] { emit flowChanged(); };
     viewModel_.onEntriesChanged = [this] { emit entriesChanged(); };
@@ -122,6 +123,26 @@ void PlaylistFacade::requestPlay() {
     const std::vector<PlaylistEntry>& entries = viewModel_.entries();
     paths.reserve(static_cast<int>(entries.size()));
     for (const PlaylistEntry& entry : entries) {
+        paths.append(QString::fromStdString(entry.path));
+    }
+    emit playRequested(paths);
+}
+
+void PlaylistFacade::requestPlaylistFile(const QString& filePath) {
+    // SH-1005: resolve through the service's non-mutating pipeline (the
+    // Phase A committed contract). Success hands the resolved paths to the
+    // SH-802 bridge emitter — identical extraction to requestPlay, so the
+    // player side owns the empty-check decision here too. Failures carry
+    // the service's error message verbatim.
+    const ImportOutcome outcome = service_.resolvePlaylistFile(
+        filePath.toStdString());
+    if (outcome.status != ImportOutcome::Status::Success) {
+        emit playlistFileFailed(QString::fromStdString(outcome.errorMessage));
+        return;
+    }
+    QVariantList paths;
+    paths.reserve(static_cast<int>(outcome.playlist.count()));
+    for (const PlaylistEntry& entry : outcome.playlist.entries()) {
         paths.append(QString::fromStdString(entry.path));
     }
     emit playRequested(paths);

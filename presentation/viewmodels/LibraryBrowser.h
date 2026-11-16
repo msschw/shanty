@@ -38,6 +38,9 @@
 //     No independent scanning here.
 #pragma once
 
+#include <cstddef>
+#include <functional>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -88,17 +91,27 @@ public:
 private:
     LibraryCatalogueViewModel& catalogue_;
 
+    // B2: the drill-down chain (indices into the catalogue groups). The
+    // album selection starts "unset" (a size that no catalogue has) — a
+    // fresh artist drill lands on the ALBUM level, not on album 0.
     BrowserMode mode_ = BrowserMode::Artists;
-    // B2: the drill-down chain (indices into the catalogue groups).
-    std::size_t selectedArtist_ = 0;   // Artists level 1
-    std::size_t selectedAlbum_ = 0;    // Artists level 2
-    std::size_t selectedCategory_ = 0; // Albums / Genres level 1
+    static const std::size_t kNoSelection = static_cast<std::size_t>(-1);
+    std::size_t selectedArtist_ = kNoSelection;    // Artists level 1
+    std::size_t selectedAlbum_ = kNoSelection;     // Artists level 2
+    std::size_t selectedCategory_ = kNoSelection;  // Albums / Genres level 1
     bool drilledIntoArtist_ = false;
     bool drilledIntoCategory_ = false;
 
     std::vector<Row> rows_;
 
     void repopulate();
+
+    /// B3 leaf rows: one Track row per path (label = the catalogue's
+    /// display title, safe fallback the path itself).
+    void appendTrackRows(const std::vector<std::string>& paths);
+
+    /// B1/B2/B7: drill-down state back to the mode root.
+    void resetNavigation();
 };
 
 }  // namespace shanty

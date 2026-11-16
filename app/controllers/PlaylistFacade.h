@@ -21,6 +21,7 @@
 #include <QString>
 #include <QVariantList>
 
+#include "core/services/PlaylistService.h"
 #include "presentation/viewmodels/PlaylistViewModel.h"
 
 namespace shanty {
@@ -42,8 +43,13 @@ class PlaylistFacade : public QObject {
     Q_PROPERTY(QString lastError READ lastError NOTIFY flowChanged)
 
 public:
+    // SH-1005 (UX-16): the facade also holds the service — the browser's
+    // playlist rows resolve an arbitrary .m3u through the NON-mutating
+    // resolvePlaylistFile (Phase A committed contract, tests/playlist_vm),
+    // which is service-level: the editing view model's flow state machine
+    // has no part in it.
     explicit PlaylistFacade(PlaylistViewModel& viewModel,
-                            QObject* parent = nullptr);
+                            PlaylistService& service, QObject* parent = nullptr);
 
     // ---- import/export flow (view-model contract, PlaylistViewModel.h) ----
     // Rejections surface through invalidCommand(reason) with the view
@@ -77,6 +83,16 @@ public:
     /// rejection surfaces on the player side; this emitter carries no
     /// decision of its own.
     Q_INVOKABLE void requestPlay();
+
+    // ---- SH-1005 (UX-16): the browser's playlist-row bridge -----------------
+    /// Resolves an arbitrary .m3u file through the service's non-mutating
+    /// resolvePlaylistFile (read → parse → boundary-resolve, NO editing-playlist
+    /// mutation, NO flow hooks). Success → playRequested(paths) — the SAME
+    /// SH-802 bridge requestPlay uses, so the app wiring and the player-side
+    /// empty-check ("The playlist is empty") are reused verbatim. Failure →
+    /// playlistFileFailed(serviceMessage) (the shell toasts it verbatim, like
+    /// the flow's lastError path).
+    Q_INVOKABLE void requestPlaylistFile(const QString& filePath);
 
     // ---- file-dialog support (SH-D603-B1; QtCore side of the browsing) ----
     /// Directory listing for FilePickerPage: [{ name, path, isDir }],
@@ -116,9 +132,13 @@ signals:
     /// SH-802: the "Play" request with the extracted entry paths (playlist
     /// order); the app wiring routes it to PlayerFacade::playFromPaths.
     void playRequested(const QVariantList& paths);
+    /// SH-1005: a browser-row playlist resolve failed (service error
+    /// message verbatim; the shell toasts it like the flow's lastError).
+    void playlistFileFailed(const QString& reason);
 
 private:
     PlaylistViewModel& viewModel_;
+    PlaylistService& service_;
 };
 
 }  // namespace shanty

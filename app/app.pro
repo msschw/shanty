@@ -56,6 +56,7 @@ HEADERS += \
     controllers/NavigationFacade.h \
     controllers/LibraryFacade.h \
     controllers/LibraryCatalogueFacade.h \
+    controllers/LibraryBrowserFacade.h \
     controllers/PlaylistFacade.h \
     controllers/PlayerFacade.h \
     controllers/SettingsFacade.h \
@@ -65,6 +66,7 @@ SOURCES += shanty.cpp \
     controllers/NavigationFacade.cpp \
     controllers/LibraryFacade.cpp \
     controllers/LibraryCatalogueFacade.cpp \
+    controllers/LibraryBrowserFacade.cpp \
     controllers/PlaylistFacade.cpp \
     controllers/PlayerFacade.cpp \
     controllers/SettingsFacade.cpp

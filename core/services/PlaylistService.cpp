@@ -83,6 +83,40 @@ void PlaylistService::import(const std::string& filePath) {
     if (onPlaylistChanged) onPlaylistChanged();
 }
 
+ImportOutcome PlaylistService::resolvePlaylistFile(
+    const std::string& filePath) {
+    // SH-1005 (UX-16): the import pipeline's read-only twin — identical
+    // steps 1–3, but the outcome is ONLY returned: the editing playlist
+    // is never replaced (step 4 dropped) and no hook fires.
+    ImportOutcome outcome;
+    outcome.status = ImportOutcome::Status::ParseErrors;
+    outcome.sourceFilePath = filePath;
+
+    // 1) Unreadable file: service-level error; the codec is not called.
+    std::string data;
+    if (!readFileBytes(filePath, data)) {
+        outcome.status = ImportOutcome::Status::UnreadableFile;
+        outcome.errorMessage = filePath + ": cannot open for reading";
+        return outcome;
+    }
+
+    // 2) Codec parse: codec errors surface verbatim.
+    const ParseResult parsed = codec_.parse(data, filePath);
+    if (!parsed.ok()) {
+        outcome.errors = parsed.errors;
+        if (!parsed.errors.empty()) {
+            outcome.errorMessage = parsed.errors.front().message;
+        }
+        return outcome;
+    }
+
+    // 3) SH-305/D3: the same boundary resolution as import().
+    outcome.playlist =
+        resolveEntryPaths(parsed.playlist, parentDirOf(filePath));
+    outcome.status = ImportOutcome::Status::Success;
+    return outcome;
+}
+
 void PlaylistService::exportPlaylist(const std::string& filePath) {
     ExportOutcome outcome;
     outcome.status = ExportOutcome::Status::SerializeError;
@@ -138,16 +172,6 @@ std::size_t PlaylistService::count() const { return playlist_.count(); }
 
 const std::vector<PlaylistEntry>& PlaylistService::entries() const {
     return playlist_.entries();
-}
-
-ImportOutcome PlaylistService::resolvePlaylistFile(
-    const std::string& filePath) {
-    // SH-1005 Phase A stub (red-first): fails everything by assertion —
-    // nothing is read, nothing is parsed, nothing is applied, no hooks.
-    (void)filePath;
-    ImportOutcome outcome;
-    outcome.status = ImportOutcome::Status::UnreadableFile;
-    return outcome;
 }
 
 long long PlaylistService::totalDurationSeconds() const {

@@ -58,6 +58,7 @@
 #include "core/playback/PlaybackQueue.h"
 #include "core/services/LibraryService.h"
 #include "core/services/PlaylistService.h"
+#include "controllers/LibraryBrowserFacade.h"  // SH-1005 (UX-16)
 #include "controllers/LibraryCatalogueFacade.h"
 #include "controllers/LibraryFacade.h"
 #include "controllers/NavigationFacade.h"
@@ -65,6 +66,7 @@
 #include "controllers/PlaylistFacade.h"
 #include "controllers/SettingsFacade.h"
 #include "presentation/viewmodels/LibraryCatalogue.h"
+#include "presentation/viewmodels/LibraryBrowser.h"  // SH-1005 (UX-16)
 #include "presentation/viewmodels/LibraryViewModel.h"
 #include "presentation/viewmodels/NavigationViewModel.h"
 #include "presentation/viewmodels/PlayerViewModel.h"
@@ -112,6 +114,9 @@ int main(int argc, char *argv[])
     TagLibReader tagReader;
     LibraryCatalogueViewModel catalogueViewModel(libraryStore, libraryService,
                                                  tagReader);
+    // SH-1005 (UX-16): the browser state layer over the catalogue (mode
+    // selector + drill-down); shares the catalogue's rebuild pipeline.
+    LibraryBrowserViewModel browserViewModel(catalogueViewModel);
     PlaylistViewModel playlistViewModel(playlistService);
     PlayerViewModel playerViewModel(controller, queue);
     // SettingsViewModel is owned by SettingsFacade (SH-D605-B1: the facade
@@ -142,7 +147,11 @@ int main(int argc, char *argv[])
     LibraryCatalogueFacade *catalogue = new LibraryCatalogueFacade(
         catalogueViewModel, application.data());
     PlaylistFacade *playlist = new PlaylistFacade(
-        playlistViewModel, application.data());
+        playlistViewModel, playlistService, application.data());
+    // SH-1005 (UX-16): the media-browser facade (mode selector, drill-down
+    // rows, row-command catalogue) over the browser state layer.
+    LibraryBrowserFacade *browser = new LibraryBrowserFacade(
+        browserViewModel, application.data());
     PlayerFacade *player = new PlayerFacade(
         playerViewModel, &controller, application.data());
     // SH-1004 (UX-15): the settings facade shares the library-config store
@@ -209,6 +218,10 @@ int main(int argc, char *argv[])
     rootContext->setContextProperty(QStringLiteral("navigationFacade"), navigation);
     rootContext->setContextProperty(QStringLiteral("library"), library);
     rootContext->setContextProperty(QStringLiteral("catalogue"), catalogue);
+    // SH-1005 (UX-16): the media browser consumes the catalogue surface —
+    // registered separately (the page never touches the catalogue facade
+    // directly; the browser owns the mode/drill-down state).
+    rootContext->setContextProperty(QStringLiteral("browser"), browser);
     rootContext->setContextProperty(QStringLiteral("playlist"), playlist);
     rootContext->setContextProperty(QStringLiteral("player"), player);
     rootContext->setContextProperty(QStringLiteral("settings"), settings);

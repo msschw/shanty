@@ -86,6 +86,10 @@ ApplicationWindow {
             return qsTr("Cannot add an empty blacklist entry")
         case "setSelected: index out of range":
             return qsTr("That selection is no longer valid")
+        case "openEntry: index out of range":
+            // SH-1005 (UX-16): the browser drill-down's rejection — a row
+            // level is usually gone after a rebuild reset.
+            return qsTr("That view is no longer available")
         // PlaylistViewModel (SH-603)
         case "beginImport: flow already open":
         case "beginExport: flow already open":
@@ -189,6 +193,16 @@ ApplicationWindow {
                 appWindow.notify(playlist.lastError)
             }
         }
+        // SH-1005 (UX-16): a browser-row playlist resolve failed — the
+        // service's error message verbatim (same presentation as the
+        // flow's lastError path above).
+        onPlaylistFileFailed: appWindow.notify(reason)
+    }
+    // SH-1005 (UX-16): the media browser's rejection channel (drill-down
+    // / mode-selector rejections, view-model catalogue strings).
+    Connections {
+        target: browser
+        onInvalidCommand: appWindow.notify(reasonMessage(reason))
     }
     Connections {
         target: player
