@@ -57,23 +57,15 @@
 <context>
     <name>LibraryPage</name>
     <message>
-        <source>Add whitelist entry</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Add blacklist entry</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Path</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Playlist</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -85,44 +77,27 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Managed folders</source>
+        <source>Artists</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Add folder</source>
+        <source>Albums</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Whitelist</source>
+        <source>Genre</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Empty whitelist: every supported file under a managed folder is included</source>
+        <source>Playlists</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Blacklist</source>
+        <source>No playlists found</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Tracks (%1)</source>
-        <extracomment>%1 = number of listed tracks</extracomment>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Select all</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Clear selection</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Play selection</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Playlist</source>
+        <source>No media found — add folders in Settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -137,6 +112,18 @@
 <context>
     <name>PlayerPage</name>
     <message>
+        <source>Playlist</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Library</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Now playing</source>
         <translation type="unfinished"></translation>
     </message>
@@ -150,6 +137,11 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Queue (%1)</source>
+        <extracomment>%1 = queue length</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Playback error: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -157,28 +149,23 @@
         <source>Try again</source>
         <translation type="unfinished"></translation>
     </message>
-    <message>
-        <source>Playlist</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Settings</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Library</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Queue (%1)</source>
-        <extracomment>%1 = queue length</extracomment>
-        <translation type="unfinished"></translation>
-    </message>
 </context>
 <context>
     <name>PlaylistPage</name>
     <message>
         <source>Total %1 min</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Discard unsaved edits?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Importing replaces the current playlist. Unsaved edits will be lost.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Play</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -211,31 +198,19 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Empty playlist</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Import a playlist or add library tracks</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Play</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Discard unsaved edits?</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Importing replaces the current playlist. Unsaved edits will be lost.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Play from here</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Remove</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Empty playlist</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import a playlist or add library tracks</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -265,7 +240,39 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Add whitelist entry</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add blacklist entry</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Managed folders</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Whitelist</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Empty whitelist: every supported file under a managed folder is included</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Blacklist</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -323,6 +330,18 @@
 <context>
     <name>shanty</name>
     <message>
+        <source>Playing playlist (1 entry)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Playing playlist (%1 entries)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Already on that page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Already on the library page</source>
         <translation type="unfinished"></translation>
     </message>
@@ -347,6 +366,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>That view is no longer available</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>A playlist file dialog is already open</source>
         <translation type="unfinished"></translation>
     </message>
@@ -359,6 +382,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>No discard confirmation is pending</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No open playlist operation to cancel</source>
         <translation type="unfinished"></translation>
     </message>
@@ -368,6 +395,14 @@
     </message>
     <message>
         <source>The queue is empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The playlist is empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Playback restored</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -427,6 +462,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Please enter a path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Playlist operation completed</source>
         <translation type="unfinished"></translation>
     </message>
@@ -447,31 +486,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Already on that page</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>The playlist is empty</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Playing playlist (1 entry)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Playing playlist (%1 entries)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Playback restored</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Nothing playing</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>No discard confirmation is pending</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
