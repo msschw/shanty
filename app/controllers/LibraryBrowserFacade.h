@@ -51,6 +51,12 @@ public:
     /// One level up; at the mode root a silent no-op (nothing to reject).
     Q_INVOKABLE void back();
 
+    // ---- Q_PROPERTY accessors ------------------------------------------------
+    QString mode() const;
+    void setMode(const QString& mode);
+    QVariantList rows() const;
+    bool canGoBack() const;
+
     // ---- SH-809 (UX-8) browser-row catalogue (B6) ------------------------------
     /// The pressAndHold menu commands for the row `index`, in stable QML
     /// string form (mirror of the view model's re-catalogue, which reuses
@@ -63,11 +69,6 @@ public:
     /// Rescans through the shared catalogue pipeline (one store.load + both
     /// scanner queries + one tag read per track) and resets the drill-down.
     Q_INVOKABLE void rebuild();
-
-    // ---- Q_PROPERTY accessors ------------------------------------------------
-    QString mode() const;
-    void setMode(const QString& mode);
-    QVariantList rows() const;
 
 signals:
     /// Fired after every setMode / openEntry / back / rebuild — the row

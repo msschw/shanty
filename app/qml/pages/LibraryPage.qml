@@ -95,10 +95,14 @@ Page {
 
             // ---- in-page back affordance (B5) ---------------------------------
             // Drill-down back never touches the page stack; the affordance
-            // appears only when a level is behind the current one.
+            // appears only when a level is behind the current one. Read as
+            // the PROPERTY (no parens): canGoBack is a rowsChanged-notified
+            // Q_PROPERTY, not an invokable (a call in a binding throws a
+            // TypeError and leaves the item at its default visibility —
+            // found on the device drive).
             IconButton {
                 x: Theme.horizontalPageMargin
-                visible: browser.canGoBack()
+                visible: browser.canGoBack
                 icon.source: "image://theme/icon-m-back"
                 onClicked: browser.back()
             }
