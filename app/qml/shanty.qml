@@ -31,6 +31,23 @@ ApplicationWindow {
         }
     }
 
+    // SH-1007 (UX-18): the toast queue panel state. Owner direction
+    // 2026-11-14: swiping UP on the bottom player toast reveals the current
+    // queue. Read-only (tap = jumpTo), the Player page's inline queue
+    // (SH-808) stays. The gesture must START ON THE TOAST SURFACE — the
+    // compositor owns the screen's very bottom edge (UX.md §1
+    // gesture-safety note), so the gesture is measured on the bar itself,
+    // not at the screen edge. A tap that moves less than the drag
+    // threshold keeps its SH-1006 meaning (open the Player page).
+    property bool queuePanelOpen: false
+
+    // Any navigation (facade page change) closes the panel — it is a
+    // transient overlay, never a stack member.
+    Connections {
+        target: navigationFacade
+        onCurrentPageChanged: appWindow.queuePanelOpen = false
+    }
+
     // SH-604 decision: PlayerViewModel exposes a snapshot that only refresh()
     // re-reads — the shell's 1 Hz timer drives position/progress updates for
     // the Player page and the cover (state changes refresh through the app
@@ -260,6 +277,130 @@ ApplicationWindow {
     }
 
     // -----------------------------------------------------------------------
+    // SH-1007 (UX-18): swipe-up queue panel. Read-only list over the SH-808
+    // snapshot (queueEntries + currentIndex — the contract locked in
+    // tests/player_vm), tap = jumpTo. Dismiss: tap outside (the scrim),
+    // the header chevron, or swipe down on the header. Rows never edit the
+    // queue (the Playlist page stays the editing surface).
+    MouseArea {
+        id: queuePanelScrim
+
+        z: 505
+        anchors.fill: parent
+        visible: appWindow.queuePanelOpen
+        onClicked: appWindow.queuePanelOpen = false
+    }
+
+    Rectangle {
+        id: queuePanel
+
+        z: 510
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: playerBar.top
+        // Count-based height (no binding loop through the list's
+        // contentHeight); capped so a long queue scrolls.
+        height: Math.min(header.height + player.queueCount * Theme.itemSizeSmall,
+                         appWindow.height * 0.6)
+        visible: appWindow.queuePanelOpen && playerBar.visible
+        color: Qt.rgba(0.1, 0.1, 0.1, 0.97)
+
+        // Thin highlight line along the panel's top edge (same language as
+        // the bar's progress line).
+        Rectangle {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            width: parent.width
+            height: Theme.paddingSmall
+            color: Theme.highlightColor
+        }
+
+        Item {
+            id: header
+
+            width: parent.width
+            height: Theme.itemSizeSmall
+
+            // Swipe-down dismiss: the gesture mirror of the open gesture,
+            // measured on the panel surface (the list owns its own flicks).
+            MouseArea {
+                anchors.fill: parent
+                property real pressY: 0
+                property bool dragged: false
+                onPressed: { pressY = mouse.y; dragged = false }
+                onPositionChanged: {
+                    if (mouse.y - pressY > Theme.itemSizeSmall) dragged = true
+                }
+                onReleased: {
+                    if (dragged) appWindow.queuePanelOpen = false
+                    dragged = false
+                }
+            }
+
+            Label {
+                anchors.left: parent.left
+                anchors.leftMargin: Theme.horizontalPageMargin
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - 2 * Theme.horizontalPageMargin - closeButton.width
+                text: qsTr("Queue (%1)").arg(player.queueCount)
+                font.pixelSize: Theme.fontSizeSmall
+                color: Theme.highlightColor
+            }
+
+            IconButton {
+                id: closeButton
+
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.paddingMedium
+                anchors.verticalCenter: parent.verticalCenter
+                icon.source: "image://theme/icon-m-down"
+                onClicked: appWindow.queuePanelOpen = false
+            }
+        }
+
+        ListView {
+            id: list
+
+            anchors.top: header.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: queuePanel.height - header.height
+            clip: true
+            model: player.queueEntries
+
+            delegate: Rectangle {
+                width: list.width
+                height: Theme.itemSizeSmall
+                color: index === player.currentIndex
+                           ? Qt.rgba(1, 1, 1, 0.12)
+                           : "transparent"
+
+                Label {
+                    anchors.left: parent.left
+                    anchors.leftMargin: Theme.horizontalPageMargin
+                    anchors.right: parent.right
+                    anchors.rightMargin: Theme.horizontalPageMargin
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: modelData.split("/").pop()
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: index === player.currentIndex
+                               ? Theme.highlightColor
+                               : Theme.primaryColor
+                    truncationMode: TruncationMode.Fade
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        player.jumpTo(index)
+                        appWindow.queuePanelOpen = false
+                    }
+                }
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // SH-804 (UX-9): the mini-player bar — a slim overlay anchored above the
     // bottom edge, z above the page stack (below the toast). QML-only: every
     // input is an existing facade binding locked by the SH-804 Phase A
@@ -310,9 +451,28 @@ ApplicationWindow {
         // Nav.showPage helper; a bare show() left the VM on "player"
         // while the stack stayed put — found on the device drive). The
         // helper is the single sync point for both directions.
+        // SH-1007: the same surface carries the swipe-UP gesture that
+        // reveals the queue panel. The gesture starts on the bar (never at
+        // the screen's bottom edge — the compositor owns that); a release
+        // that moved less than the threshold is still a plain tap.
         MouseArea {
+            id: barInfoTouch
+
             anchors.fill: parent
-            onClicked: Nav.showPage(navigationFacade, pageStack, "player")
+            property real pressY: 0
+            property bool dragged: false
+            onPressed: { pressY = mouse.y; dragged = false }
+            onPositionChanged: {
+                if (mouse.y - pressY < -Theme.itemSizeSmall) dragged = true
+            }
+            onReleased: {
+                if (dragged) {
+                    appWindow.queuePanelOpen = true
+                } else {
+                    Nav.showPage(navigationFacade, pageStack, "player")
+                }
+                dragged = false
+            }
         }
 
         Label {
