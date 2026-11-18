@@ -489,5 +489,9 @@
         <source>Nothing playing</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Queue (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 </TS>
