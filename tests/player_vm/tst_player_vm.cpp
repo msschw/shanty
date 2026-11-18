@@ -128,6 +128,10 @@ private slots:
     void queueEntriesTrackAQueueReplace();
     void queueEntriesCountMatchesQueueCount();
 
+    // ---- SH-1007 (UX-18): toast queue panel contract (regression locks) ------
+    void panelJumpToMovesTheHighlightWithinTheSameEntryList();
+    void panelHighlightAlwaysIndexesAQueueEntry();
+
     // ---- hooks ----------------------------------------------------------------
     void refreshFiresOnUpdatedExactlyOncePerCall();
 };
@@ -808,6 +812,83 @@ void TestPlayerViewModel::queueEntriesCountMatchesQueueCount() {
     f.vm.next();
     f.vm.refresh();
     QCOMPARE(f.vm.queueEntries().size(), f.vm.queueCount());
+}
+
+// ---- SH-1007 (UX-18): toast queue panel contract (regression locks) ---------
+// The swipe-up panel on the player toast is QML-only (a read-only list over
+// the SH-808 snapshot; tap = jumpTo; dismiss is local). Phase A therefore
+// pins the panel-facing VIEW-MODEL contract it binds — no new property is
+// needed; these cases lock the three inputs the panel must trust:
+//   (1) tap → jumpTo moves the highlight but NEVER reorders the rows;
+//   (2) the highlight is always a valid INDEX into the row list (the panel
+//       renders title + highlight from the same two properties);
+//   (3) both boundaries (first / last row) route like the transport does.
+// Green-on-arrival by design (the SH-804 Phase A precedent): the panel adds
+// no view-model logic, so these are regression guards, not red-first specs.
+
+void TestPlayerViewModel::panelJumpToMovesTheHighlightWithinTheSameEntryList() {
+    Fixture f;
+    f.loadThreeEntries();
+    f.vm.refresh();
+
+    // Tap the last panel row: jumpTo(2) → highlight on entry 2, rows intact.
+    f.controller.jumpTo(2);
+    f.vm.refresh();
+    QCOMPARE(f.vm.queueEntries().size(), size_t(3));
+    if (f.vm.queueEntries().size() == 3) {
+        QCOMPARE(f.vm.queueEntries()[0], std::string("/a.mp3"));
+        QCOMPARE(f.vm.queueEntries()[1], std::string("/b.ogg"));
+        QCOMPARE(f.vm.queueEntries()[2], std::string("/c.flac"));
+    }
+    QCOMPARE(f.vm.currentIndex(), size_t(2));
+    // The panel's highlighted row and its title read the same pair.
+    QCOMPARE(f.vm.currentEntry(), f.vm.queueEntries()[f.vm.currentIndex()]);
+    QCOMPARE(f.vm.canGoNext(), false);
+    QCOMPARE(f.vm.canGoPrevious(), true);
+
+    // Tap the first panel row: back to the top of the SAME list.
+    f.controller.jumpTo(0);
+    f.vm.refresh();
+    QCOMPARE(f.vm.queueEntries().size(), size_t(3));
+    QCOMPARE(f.vm.queueEntries().front(), std::string("/a.mp3"));
+    QCOMPARE(f.vm.currentIndex(), size_t(0));
+    QCOMPARE(f.vm.currentEntry(), f.vm.queueEntries()[f.vm.currentIndex()]);
+    QCOMPARE(f.vm.canGoPrevious(), false);
+    QCOMPARE(f.vm.canGoNext(), true);
+}
+
+void TestPlayerViewModel::panelHighlightAlwaysIndexesAQueueEntry() {
+    Fixture f;
+    f.loadThreeEntries();
+    f.vm.refresh();
+
+    // Walk the panel's inputs through every transition the panel can see
+    // while it is open: transport, jump, a queue replace, and the empty
+    // queue (panel hidden — queueCount clause — but the invariant must hold).
+    f.vm.next();
+    f.vm.refresh();
+    QVERIFY(f.vm.currentIndex() < f.vm.queueEntries().size());
+
+    f.vm.previous();
+    f.vm.refresh();
+    QVERIFY(f.vm.currentIndex() < f.vm.queueEntries().size());
+
+    f.controller.jumpTo(2);
+    f.vm.refresh();
+    QVERIFY(f.vm.currentIndex() < f.vm.queueEntries().size());
+    QCOMPARE(f.vm.currentIndex(), size_t(2));
+
+    // A queue replace while the panel is visible: rows swap, highlight resets
+    // to a valid index (no stale highlight beyond the new list).
+    f.vm.playFromPaths({"/x.mp3", "/y.ogg"});
+    f.vm.refresh();
+    QCOMPARE(f.vm.queueEntries().size(), size_t(2));
+    QVERIFY(f.vm.currentIndex() < f.vm.queueEntries().size());
+
+    f.controller.loadQueue({});
+    f.vm.refresh();
+    QCOMPARE(f.vm.queueCount(), size_t(0));
+    QCOMPARE(f.vm.queueEntries().empty(), true);
 }
 
 QTEST_MAIN(TestPlayerViewModel)
