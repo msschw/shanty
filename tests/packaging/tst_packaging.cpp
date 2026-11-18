@@ -15,11 +15,19 @@
 //   6. qmlUserVisibleStringsHaveCatalogueEntries (SOFT, see the case)
 //   7. rpmSpecDeclaresEqualizerDependencies    (SH-901: the gst engine contract)
 //   8. rpmSpecDeclaresTaglibDependencies       (SH-1001: the tag reader contract)
+//   9. settingsEntryBindsTheSystemSettingsPageToTheDesktopFile (SH-1008)
+//  10. settingsPluginProjectDeclaresTheQmlModule                (SH-1008)
+//  11. settingsPageManagesTheLibraryConfigThroughThePlugin      (SH-1008)
+//  12. specFilesShipTheSettingsEntryAndTheQmlPlugin             (SH-1008)
 
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
 #include <QRegularExpression>
 #include <QSet>
 #include <QString>
@@ -138,6 +146,12 @@ private slots:
     void qmlUserVisibleStringsHaveCatalogueEntries();
     void rpmSpecDeclaresEqualizerDependencies();
     void rpmSpecDeclaresTaglibDependencies();
+
+    // ---- SH-1008 (UX-19): library config in the system Settings app --------
+    void settingsEntryBindsTheSystemSettingsPageToTheDesktopFile();
+    void settingsPluginProjectDeclaresTheQmlModule();
+    void settingsPageManagesTheLibraryConfigThroughThePlugin();
+    void specFilesShipTheSettingsEntryAndTheQmlPlugin();
 
 private:
     static QString specPath() {
@@ -507,6 +521,245 @@ void TestPackaging::rpmSpecDeclaresTaglibDependencies() {
                  QRegularExpression::MultilineOption)),
              "BuildRequires must declare pkgconfig(taglib) "
              "(the tag reader compile surface, SH-1001)");
+}
+
+// ---- SH-1008 (UX-19): library config in the system Settings app ------------
+// Phase 0 (verified on the emulator 2026-11-18) fixed the mechanism: a JSON
+// file in /usr/share/jolla-settings/entries/ with "type": "application",
+// "path": "applications/<desktop-file-name>.desktop" (the .desktop suffix is
+// REQUIRED — without it the tile silently opens the generic permissions
+// page) and params.source = a QML page whose root is com.jolla.settings'
+// ApplicationSettings. The app's view models reach that page through a QML
+// plugin module (Shanty.Settings), because the page runs in the
+// jolla-settings engine, not the app's.
+//
+// The four cases below pin the packaging contract; the runtime contract
+// (the page writes the same ~/.config/shanty/library.conf the app reads) is
+// device-verified by the ticket's acceptance drive.
+
+void TestPackaging::settingsEntryBindsTheSystemSettingsPageToTheDesktopFile() {
+    const QString target = appTarget();
+    QVERIFY(!target.isEmpty());
+
+    // Source location (installed by app.pro's INSTALLS rule under the
+    // literal name the Settings tree looks for: <name>.json).
+    const QString jsonPath = QStringLiteral(SHANTY_ROOT) +
+                             QStringLiteral("/app/jolla-settings/shanty.json");
+    QVERIFY2(requireReadable(jsonPath, "the jolla-settings entry JSON"),
+             "SH-1008: app/jolla-settings/shanty.json must exist");
+
+    QJsonParseError parseError;
+    const QJsonDocument document =
+        QJsonDocument::fromJson(readFileOrThrow(jsonPath).toUtf8(),
+                                &parseError);
+    QVERIFY2(parseError.error == QJsonParseError::NoError,
+             qPrintable(QStringLiteral("entries JSON does not parse: %1")
+                            .arg(parseError.errorString())));
+    QVERIFY2(document.isObject(), "entries JSON must be an object");
+
+    const QJsonArray entries = document.object().value(QStringLiteral("entries"))
+                                   .toArray();
+    QVERIFY2(!entries.isEmpty(),
+             "entries JSON must carry at least one entry");
+
+    QJsonObject applicationEntry;
+    bool foundApplication = false;
+    for (const QJsonValue& value : entries) {
+        const QJsonObject entry = value.toObject();
+        if (entry.value(QStringLiteral("type")).toString() ==
+            QStringLiteral("application")) {
+            applicationEntry = entry;
+            foundApplication = true;
+            break;
+        }
+    }
+    QVERIFY2(foundApplication,
+             "entries JSON must carry a \"type\": \"application\" entry");
+
+    // Phase 0 binding rule: the FULL desktop-file name (with .desktop),
+    // otherwise the Settings app falls back to the generic page.
+    QCOMPARE(applicationEntry.value(QStringLiteral("path")).toString(),
+             QStringLiteral("applications/%1.desktop").arg(target));
+
+    const QString source =
+        applicationEntry.value(QStringLiteral("params")).toObject()
+            .value(QStringLiteral("source")).toString();
+    const QString installedPrefix =
+        QStringLiteral("/usr/share/%1/qml/").arg(target);
+    QVERIFY2(source.startsWith(installedPrefix),
+             qPrintable(QStringLiteral(
+                            "params.source must be the installed app QML path "
+                            "(under %1), got '%2'")
+                            .arg(installedPrefix, source)));
+
+    // The packaged page must exist in the repo (app/qml/...) so the
+    // sailfishapp install actually ships it.
+    const QString pagePath = appPath() + QStringLiteral("/qml/") +
+                             source.mid(installedPrefix.size());
+    QVERIFY2(QFileInfo::exists(pagePath),
+             qPrintable(QStringLiteral(
+                            "params.source has no source file on disk: %1")
+                            .arg(pagePath)));
+    const QString pageQml = readFileOrThrow(pagePath);
+    QVERIFY2(pageQml.contains(QRegularExpression(
+                 QStringLiteral("^import com\\.jolla\\.settings 1\\.0\\s*$"),
+                 QRegularExpression::MultilineOption)),
+             "the Settings page must import the com.jolla.settings module");
+    QVERIFY2(pageQml.contains(QRegularExpression(
+                 QStringLiteral("^ApplicationSettings\\s*\\{"),
+                 QRegularExpression::MultilineOption)),
+             "the Settings page's root must be ApplicationSettings");
+
+    // app.pro owns the install rule (qmake INSTALLS → the Settings tree).
+    const QString appPro = readFileOrThrow(appProPath());
+    QVERIFY2(appPro.contains(
+                 QStringLiteral("$$[QT_INSTALL_DATA]/jolla-settings/entries")),
+             "app/app.pro must install the entry into "
+             "$$[QT_INSTALL_DATA]/jolla-settings/entries");
+    QVERIFY2(appPro.contains(QStringLiteral("jolla-settings/shanty.json")),
+             "app/app.pro must install app/jolla-settings/shanty.json");
+}
+
+void TestPackaging::settingsPluginProjectDeclaresTheQmlModule() {
+    const QString pluginDir = appPath() +
+                              QStringLiteral("/settings-plugin");
+    QVERIFY2(QFileInfo(pluginDir).isDir(),
+             "SH-1008: app/settings-plugin/ must exist");
+
+    const QString projectPath =
+        pluginDir + QStringLiteral("/settings-plugin.pro");
+    QVERIFY(requireReadable(projectPath, "the settings plugin project"));
+    const QString project = readFileOrThrow(projectPath);
+    QVERIFY2(project.contains(QRegularExpression(
+                 QStringLiteral("^TEMPLATE\\s*=\\s*lib\\s*$"),
+                 QRegularExpression::MultilineOption)),
+             "settings-plugin.pro must be TEMPLATE = lib");
+    QVERIFY2(project.contains(QRegularExpression(
+                 QStringLiteral("CONFIG\\s*\\+=\\s*[^\\n]*\\bplugin\\b"))),
+             "settings-plugin.pro must declare CONFIG += plugin");
+    QVERIFY2(project.contains(QRegularExpression(
+                 QStringLiteral("^TARGET\\s*=\\s*shantysettings\\s*$"),
+                 QRegularExpression::MultilineOption)),
+             "settings-plugin.pro must build TARGET = shantysettings");
+    QVERIFY2(project.contains(
+                 QStringLiteral("$$[QT_INSTALL_QML]/Shanty/Settings")),
+             "settings-plugin.pro must install under "
+             "$$[QT_INSTALL_QML]/Shanty/Settings");
+
+    const QString qmldirPath = pluginDir + QStringLiteral("/qmldir");
+    QVERIFY(requireReadable(qmldirPath, "the settings plugin qmldir"));
+    const QString qmldir = readFileOrThrow(qmldirPath);
+    QVERIFY2(qmldir.contains(QRegularExpression(
+                 QStringLiteral("^module Shanty\\.Settings\\s*$"),
+                 QRegularExpression::MultilineOption)),
+             "qmldir must declare 'module Shanty.Settings'");
+    QVERIFY2(qmldir.contains(QRegularExpression(
+                 QStringLiteral("^plugin shantysettings\\s*$"),
+                 QRegularExpression::MultilineOption)),
+             "qmldir must name the plugin binary (plugin shantysettings)");
+
+    // registerTypes() is where a QQmlExtensionPlugin declares its module.
+    bool registersModule = false;
+    QDirIterator it(pluginDir, QStringList{QStringLiteral("*.cpp")},
+                    QDir::Files);
+    while (it.hasNext()) {
+        const QString source = readFileOrThrow(it.next());
+        if (source.contains(QStringLiteral("qmlRegisterSingletonType")) &&
+            source.contains(QStringLiteral("\"Shanty.Settings\""))) {
+            registersModule = true;
+            break;
+        }
+    }
+    QVERIFY2(registersModule,
+             "the plugin must register its singleton under \"Shanty.Settings\"");
+
+    // The top-level project must build the plugin on the device.
+    const QString topLevel =
+        readFileOrThrow(QStringLiteral(SHANTY_ROOT) +
+                        QStringLiteral("/shanty.pro"));
+    QVERIFY2(topLevel.contains(QStringLiteral("app/settings-plugin")),
+             "shanty.pro must build app/settings-plugin in the device branch");
+}
+
+void TestPackaging::settingsPageManagesTheLibraryConfigThroughThePlugin() {
+    const QString pagePath =
+        appPath() + QStringLiteral("/qml/pages/SettingsEntryPage.qml");
+    QVERIFY(requireReadable(pagePath, "the system Settings page"));
+    const QString page = readFileOrThrow(pagePath);
+
+    QVERIFY2(page.contains(QStringLiteral("import Shanty.Settings 1.0")),
+             "the Settings page must import the Shanty.Settings plugin");
+    // The page binds the plugin singleton's library surface — the same
+    // commands the in-app page used to expose (SH-1004 UI, relocated).
+    const QStringList members{
+        QStringLiteral("libraryFolders"),
+        QStringLiteral("libraryWhitelist"),
+        QStringLiteral("libraryBlacklist"),
+        QStringLiteral("addFolder"),
+        QStringLiteral("removeFolder"),
+        QStringLiteral("addWhitelistEntry"),
+        QStringLiteral("removeWhitelistEntry"),
+        QStringLiteral("addBlacklistEntry"),
+        QStringLiteral("removeBlacklistEntry"),
+        QStringLiteral("listDirectory"),
+        QStringLiteral("homeDir"),
+    };
+    for (const QString& member : members) {
+        QVERIFY2(page.contains(QStringLiteral("ShantySettings.") + member),
+                 qPrintable(QStringLiteral(
+                                "the Settings page must use "
+                                "ShantySettings.%1").arg(member)));
+    }
+    // Shared, facade-agnostic pickers live in the same QML directory.
+    QVERIFY2(page.contains(QStringLiteral("FilePickerPage.qml")),
+             "the Settings page must reuse FilePickerPage.qml");
+    QVERIFY2(page.contains(QStringLiteral("PromptPage.qml")),
+             "the Settings page must reuse PromptPage.qml");
+
+    // The app's own Settings page keeps the equalizer only: no library
+    // management (owner direction SH-1008).
+    const QString inAppPage =
+        readFileOrThrow(appPath() + QStringLiteral("/qml/pages/SettingsPage.qml"));
+    const QStringList removed{
+        QStringLiteral("libraryFolders"),
+        QStringLiteral("libraryWhitelist"),
+        QStringLiteral("libraryBlacklist"),
+        QStringLiteral("addFolder"),
+        QStringLiteral("removeFolder"),
+        QStringLiteral("addWhitelistEntry"),
+        QStringLiteral("removeWhitelistEntry"),
+        QStringLiteral("addBlacklistEntry"),
+        QStringLiteral("removeBlacklistEntry"),
+        QStringLiteral("pushFolderPicker"),
+        QStringLiteral("pushFilterPrompt"),
+    };
+    for (const QString& member : removed) {
+        QVERIFY2(!inAppPage.contains(member),
+                 qPrintable(QStringLiteral(
+                                "SettingsPage.qml must no longer reference "
+                                "%1 (library config moved to the system "
+                                "Settings app)").arg(member)));
+    }
+    QVERIFY2(inAppPage.contains(QStringLiteral("settings.profiles")),
+             "SettingsPage.qml must keep the equalizer profile UI");
+}
+
+void TestPackaging::specFilesShipTheSettingsEntryAndTheQmlPlugin() {
+    QVERIFY(requireReadable(specPath(), "rpm/shanty.spec"));
+    const QString spec = readFileOrThrow(specPath());
+    const QString files = specSection(spec, QStringLiteral("%files"));
+    QVERIFY2(!files.isEmpty(), "rpm/shanty.spec must have a %files section");
+    QVERIFY2(files.contains(QStringLiteral(
+                 "%{_datadir}/jolla-settings/entries/%{name}.json")),
+             "%files must ship the jolla-settings entry JSON");
+    QVERIFY2(files.contains(
+                 QStringLiteral("%{_libdir}/qt5/qml/Shanty/Settings")),
+             "%files must ship the Shanty.Settings QML plugin");
+    QVERIFY2(spec.contains(QRegularExpression(
+                 QStringLiteral("^Requires:\\s*jolla-settings\\b"),
+                 QRegularExpression::MultilineOption)),
+             "runtime Requires must declare jolla-settings (the owner of "
+             "the entries tree the packaged page loads into)");
 }
 
 QTEST_MAIN(TestPackaging)
