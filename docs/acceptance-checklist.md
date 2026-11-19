@@ -18,6 +18,11 @@ Two surfaces exist:
 
 Part A — Automated gates (host)
 
+How to run every gate — this sweep, the red-first phase workflow, the clean
+RPM build/deploy and the emulator drive — is documented once in
+**`PROJECT.md` § "Testing & Verification Procedures"**; the table and
+criteria below remain authoritative for acceptance.
+
 Single documented entry point (SH-701):
 
 ```sh
