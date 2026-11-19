@@ -222,23 +222,7 @@
     </message>
 </context>
 <context>
-    <name>SettingsPage</name>
-    <message>
-        <source>New profile</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Profile name</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Rename profile</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Import AutoEq profile</source>
-        <translation type="unfinished"></translation>
-    </message>
+    <name>SettingsEntryPage</name>
     <message>
         <source>Add whitelist entry</source>
         <translation type="unfinished"></translation>
@@ -249,10 +233,6 @@
     </message>
     <message>
         <source>Path</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -273,6 +253,29 @@
     </message>
     <message>
         <source>Blacklist</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>SettingsPage</name>
+    <message>
+        <source>New profile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Profile name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rename profile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import AutoEq profile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
