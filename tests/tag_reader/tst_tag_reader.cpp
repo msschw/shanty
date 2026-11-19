@@ -6,10 +6,15 @@
 // artist only), untagged.mp3 (no tags at all).
 // Copyright 2026 Shanty contributors. SPDX-License-Identifier: GPL-3.0-or-later
 #include <QtTest>
+#include <QFile>
 
+#include "ports/IArtworkReader.h"
 #include "ports/ITagReader.h"
+#include "taglib/TagLibArtworkReader.h"
 #include "taglib/TagLibReader.h"
 
+using shanty::Artwork;
+using shanty::TagLibArtworkReader;
 using shanty::TagLibReader;
 using shanty::TagMetadata;
 
@@ -18,6 +23,14 @@ namespace {
 QString fixture(const char* name) {
     return QStringLiteral(SHANTY_ROOT) + QStringLiteral("/tests/fixtures/tags/") +
            QString::fromLatin1(name);
+}
+
+QByteArray fileBytes(const QString& path) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return QByteArray();
+    }
+    return file.readAll();
 }
 
 }  // namespace
@@ -39,6 +52,15 @@ private slots:
 
     void readYieldsCleanMissForMissingFile();
     void readYieldsCleanMissForDirectoryPath();
+
+    // --- SH-1009 (UX-20): embedded artwork ---
+
+    void artworkReturnsFrontCoverForMp3();
+    void artworkReturnsPictureForFlac();
+    void artworkReturnsPictureForOggVorbis();
+    void artworkPrefersFrontCoverOverOtherTypes();
+    void artworkYieldsCleanMissWithoutPicture();
+    void artworkYieldsCleanMissForMissingFile();
 };
 
 void TestTagReader::readReturnsFullTagsForMp3() {
@@ -110,6 +132,65 @@ void TestTagReader::readYieldsCleanMissForDirectoryPath() {
     TagLibReader reader;
     const TagMetadata md = reader.read(fixture("tags").toStdString());
     QVERIFY(md.isEmpty());
+}
+
+// ---- SH-1009 (UX-20): embedded artwork -------------------------------------
+
+void TestTagReader::artworkReturnsFrontCoverForMp3() {
+    TagLibArtworkReader reader;
+    const Artwork art = reader.read(fixture("art.mp3").toStdString());
+    QVERIFY(!art.isEmpty());
+    QCOMPARE(QString::fromStdString(art.mimeType), QStringLiteral("image/png"));
+    // The committed cover is a 16x16 PNG (the back cover is a different
+    // picture — the next case pins the front-cover preference).
+    const QByteArray expected = fileBytes(fixture("cover.png"));
+    QVERIFY(!expected.isEmpty());
+    QCOMPARE(QByteArray::fromStdString(art.data), expected);
+}
+
+void TestTagReader::artworkReturnsPictureForFlac() {
+    TagLibArtworkReader reader;
+    const Artwork art = reader.read(fixture("art.flac").toStdString());
+    QVERIFY(!art.isEmpty());
+    QCOMPARE(QString::fromStdString(art.mimeType), QStringLiteral("image/png"));
+    const QByteArray expected = fileBytes(fixture("cover.png"));
+    QVERIFY(!expected.isEmpty());
+    QCOMPARE(QByteArray::fromStdString(art.data), expected);
+}
+
+void TestTagReader::artworkReturnsPictureForOggVorbis() {
+    TagLibArtworkReader reader;
+    const Artwork art = reader.read(fixture("art.ogg").toStdString());
+    QVERIFY(!art.isEmpty());
+    QCOMPARE(QString::fromStdString(art.mimeType), QStringLiteral("image/png"));
+    const QByteArray expected = fileBytes(fixture("cover.png"));
+    QVERIFY(!expected.isEmpty());
+    QCOMPARE(QByteArray::fromStdString(art.data), expected);
+}
+
+void TestTagReader::artworkPrefersFrontCoverOverOtherTypes() {
+    // art.mp3 carries a back cover FIRST and a front cover second; the
+    // adapter must return the front one regardless of tag order.
+    TagLibArtworkReader reader;
+    const Artwork art = reader.read(fixture("art.mp3").toStdString());
+    const QByteArray front = fileBytes(fixture("cover.png"));
+    const QByteArray back = fileBytes(fixture("back.png"));
+    QVERIFY(!front.isEmpty());
+    QVERIFY(!back.isEmpty());
+    QCOMPARE(QByteArray::fromStdString(art.data), front);
+    QVERIFY(QByteArray::fromStdString(art.data) != back);
+}
+
+void TestTagReader::artworkYieldsCleanMissWithoutPicture() {
+    TagLibArtworkReader reader;
+    QVERIFY(reader.read(fixture("tagged.mp3").toStdString()).isEmpty());
+    QVERIFY(reader.read(fixture("untagged.mp3").toStdString()).isEmpty());
+}
+
+void TestTagReader::artworkYieldsCleanMissForMissingFile() {
+    TagLibArtworkReader reader;
+    QVERIFY(reader.read("/nonexistent/shanty/missing.mp3").isEmpty());
+    QVERIFY(reader.read(fixture("tags").toStdString()).isEmpty());
 }
 
 QTEST_MAIN(TestTagReader)

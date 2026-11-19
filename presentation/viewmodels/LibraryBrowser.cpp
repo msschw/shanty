@@ -9,8 +9,8 @@
 namespace shanty {
 
 LibraryBrowserViewModel::LibraryBrowserViewModel(
-    LibraryCatalogueViewModel& catalogue)
-    : catalogue_(catalogue) {}
+    LibraryCatalogueViewModel& catalogue, IArtworkReader* artwork)
+    : catalogue_(catalogue), artwork_(artwork) {}
 
 void LibraryBrowserViewModel::setMode(BrowserMode mode) {
     // B1: switching the mode resets the drill-down to the mode root.
@@ -25,6 +25,8 @@ void LibraryBrowserViewModel::rebuild() {
     // (one store.load + both scanner queries + one tag read per track).
     // The row shapes may have changed → navigation reset.
     catalogue_.rebuild();
+    // SH-1009: the files behind a row may have changed with the rescan.
+    artworkPresence_.clear();
     resetNavigation();
 }
 
@@ -159,6 +161,14 @@ void LibraryBrowserViewModel::repopulate() {
                 Row row;
                 row.kind = Row::Kind::Category;
                 row.label = artist.label;
+                // SH-1009: artist art = first picture among the artist's
+                // albums, in catalogue order.
+                std::vector<std::string> candidates;
+                for (const CatalogueGroup& album : artist.children) {
+                    candidates.insert(candidates.end(), album.paths.begin(),
+                                      album.paths.end());
+                }
+                row.artworkPath = firstArtworkPath(candidates);
                 rows_.push_back(std::move(row));
             }
             return;
@@ -170,11 +180,14 @@ void LibraryBrowserViewModel::repopulate() {
                 Row row;
                 row.kind = Row::Kind::Category;
                 row.label = album.label;
+                row.artworkPath = firstArtworkPath(album.paths);
                 rows_.push_back(std::move(row));
             }
             return;
         }
-        appendTrackRows(albums[selectedAlbum_].paths);  // level 2: tracks
+        // Level 2: tracks of one album (single-album context → sibling
+        // artwork fallback is safe).
+        appendTrackRows(albums[selectedAlbum_].paths, true);
         return;
     }
 
@@ -184,11 +197,15 @@ void LibraryBrowserViewModel::repopulate() {
             Row row;
             row.kind = Row::Kind::Category;
             row.label = category.label;
+            row.artworkPath = firstArtworkPath(category.paths);
             rows_.push_back(std::move(row));
         }
         return;
     }
-    appendTrackRows(groups[selectedCategory_].paths);
+    // Albums is a single-album context; the Genres leaf mixes albums,
+    // so a track may not borrow a sibling's picture there.
+    appendTrackRows(groups[selectedCategory_].paths,
+                    mode_ == BrowserMode::Albums);
 }
 
 void LibraryBrowserViewModel::resetNavigation() {
@@ -202,7 +219,7 @@ void LibraryBrowserViewModel::resetNavigation() {
 }
 
 void LibraryBrowserViewModel::appendTrackRows(
-    const std::vector<std::string>& paths) {
+    const std::vector<std::string>& paths, bool singleAlbum) {
     const std::map<std::string, std::string>& titles =
         catalogue_.displayTitles();
     for (const std::string& path : paths) {
@@ -215,8 +232,33 @@ void LibraryBrowserViewModel::appendTrackRows(
             titles.find(path);
         row.label = it != titles.end() ? it->second : path;
         row.path = path;
+        // SH-1009: own picture first; borrow a sibling's only when the
+        // level is one album (the Genres leaf mixes albums).
+        std::vector<std::string> candidates;
+        candidates.push_back(path);
+        if (singleAlbum) {
+            for (const std::string& sibling : paths) {
+                if (sibling != path) {
+                    candidates.push_back(sibling);
+                }
+            }
+        }
+        row.artworkPath = firstArtworkPath(candidates);
         rows_.push_back(std::move(row));
     }
+}
+
+std::string LibraryBrowserViewModel::firstArtworkPath(
+    const std::vector<std::string>& candidates) {
+    // Phase A stub: no artwork resolution until Phase B.
+    (void)candidates;
+    return std::string();
+}
+
+bool LibraryBrowserViewModel::hasArtwork(const std::string& path) {
+    // Phase A stub: no artwork resolution until Phase B.
+    (void)path;
+    return false;
 }
 
 }  // namespace shanty

@@ -75,11 +75,13 @@ SOURCES += \
 
 HEADERS += \
     engine/AudioEngineAdapter.h \
-    taglib/TagLibReader.h
+    taglib/TagLibReader.h \
+    taglib/TagLibArtworkReader.h
 
 SOURCES += \
     engine/AudioEngineAdapter.cpp \
-    taglib/TagLibReader.cpp
+    taglib/TagLibReader.cpp \
+    taglib/TagLibArtworkReader.cpp
 
 # SH-1001 Phase B: TagLibReader links taglib on the host AND the device
 # (both carry the lib + pkg-config; host 2.3.2, SDK target/image 2.0.2 —

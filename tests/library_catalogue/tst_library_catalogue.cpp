@@ -8,6 +8,7 @@
 
 #include "FakePersistingLibraryStore.h"
 #include "FakeTagReader.h"
+#include "FakeArtworkReader.h"
 #include "RecordingScanner.h"
 
 #include "core/services/LibraryService.h"
@@ -73,6 +74,7 @@ struct BrowserFix {
     Vm fix;
     std::unique_ptr<LibraryCatalogueViewModel> catalogue;
     std::unique_ptr<LibraryBrowserViewModel> browser;
+    FakeArtworkReader artwork;
     std::vector<std::string> invalid;
 
     explicit BrowserFix(std::vector<std::string> tracks = {},
@@ -80,7 +82,7 @@ struct BrowserFix {
                         std::vector<std::string> playlists = {})
         : fix(std::move(tracks), std::move(playlists), std::move(tagMap)) {
         catalogue.reset(new LibraryCatalogueViewModel(fix.make()));
-        browser.reset(new LibraryBrowserViewModel(*catalogue));
+        browser.reset(new LibraryBrowserViewModel(*catalogue, &artwork));
         browser->onInvalid = [this](const char* reason) {
             invalid.push_back(reason ? reason : "(null)");
         };
@@ -117,6 +119,13 @@ int indexOfRow(const BrowserFix& fix, const std::string& label) {
     return -1;
 }
 
+shanty::Artwork picture() {
+    shanty::Artwork art;
+    art.mimeType = "image/png";
+    art.data = "png";
+    return art;
+}
+
 }  // namespace
 
 class TestLibraryCatalogue : public QObject {
@@ -144,6 +153,13 @@ private slots:
     void browserBackAtRootIsNoOp();
     void browserRebuildResetsNavigationAndRefreshesRows();
     void browserRowCommandsCatalogue();
+
+    // ---- SH-1009 (UX-20): artwork tiles (red-first) --------------------------
+    void artworkCategoryRowsUseFirstTrackWithPicture();
+    void artworkTrackRowsPreferOwnPictureAndBorrowWithinOneAlbum();
+    void artworkGenresLeafNeverBorrowsAcrossAlbums();
+    void artworkPlaylistRowsHaveNoArtwork();
+    void artworkPresenceIsCachedWithinARebuild();
 };
 
 void TestLibraryCatalogue::emptyLibraryYieldsAllModesEmpty() {
@@ -612,6 +628,133 @@ void TestLibraryCatalogue::browserRowCommandsCatalogue() {
     QVERIFY(lists.browser->rowCommands(0) ==
             std::vector<shanty::LibraryViewModel::RowCommand>(
                 {shanty::LibraryViewModel::RowCommand::Play}));
+}
+
+// ---- SH-1009 (UX-20): artwork tiles ----------------------------------------
+
+void TestLibraryCatalogue::artworkCategoryRowsUseFirstTrackWithPicture() {
+    // Artist art = the first picture in the artist's album order; album
+    // art = the first picture in the album's track order.
+    BrowserFix fix = artistsFixture();
+    fix.artwork.scripted_["/music/t3.mp3"] = picture();
+    fix.rebuild();
+
+    int row = indexOfRow(fix, "Aurora");
+    QVERIFY(row >= 0);
+    QCOMPARE(QString::fromStdString(fix.browser->rows()[row].artworkPath),
+             QStringLiteral("/music/t3.mp3"));
+    row = indexOfRow(fix, "Beacon");
+    QVERIFY(row >= 0);
+    QVERIFY(fix.browser->rows()[row].artworkPath.empty());
+
+    // Drilling into the artist: Land gets t3's picture, Sky has none yet.
+    fix.browser->openEntry(indexOfRow(fix, "Aurora"));
+    row = indexOfRow(fix, "Land");
+    QVERIFY(row >= 0);
+    QCOMPARE(QString::fromStdString(fix.browser->rows()[row].artworkPath),
+             QStringLiteral("/music/t3.mp3"));
+    row = indexOfRow(fix, "Sky");
+    QVERIFY(row >= 0);
+    QVERIFY(fix.browser->rows()[row].artworkPath.empty());
+
+    // A picture on the album's SECOND track: the album row takes it (the
+    // first track has none), independently of track order.
+    fix.artwork.scripted_["/music/t2.mp3"] = picture();
+    fix.browser->setMode(BrowserMode::Albums);
+    row = indexOfRow(fix, "Sky");
+    QVERIFY(row >= 0);
+    QCOMPARE(QString::fromStdString(fix.browser->rows()[row].artworkPath),
+             QStringLiteral("/music/t2.mp3"));
+}
+
+void TestLibraryCatalogue::artworkTrackRowsPreferOwnPictureAndBorrowWithinOneAlbum() {
+    // Artists → Aurora → Sky is a single-album level: a track without its
+    // own picture may use a sibling's (the album cover).
+    BrowserFix fix = artistsFixture();
+    fix.artwork.scripted_["/music/t1.mp3"] = picture();
+    fix.rebuild();
+
+    fix.browser->openEntry(indexOfRow(fix, "Aurora"));
+    fix.browser->openEntry(indexOfRow(fix, "Sky"));
+    int row = indexOfRow(fix, "Alpha");
+    QVERIFY(row >= 0);
+    QCOMPARE(QString::fromStdString(fix.browser->rows()[row].artworkPath),
+             QStringLiteral("/music/t1.mp3"));
+    row = indexOfRow(fix, "Beta");  // no own picture → sibling cover
+    QVERIFY(row >= 0);
+    QCOMPARE(QString::fromStdString(fix.browser->rows()[row].artworkPath),
+             QStringLiteral("/music/t1.mp3"));
+
+    // Own picture always wins over a sibling's.
+    BrowserFix own = artistsFixture();
+    own.artwork.scripted_["/music/t1.mp3"] = picture();
+    own.artwork.scripted_["/music/t2.mp3"] = picture();
+    own.rebuild();
+    own.browser->openEntry(indexOfRow(own, "Aurora"));
+    own.browser->openEntry(indexOfRow(own, "Sky"));
+    row = indexOfRow(own, "Beta");
+    QVERIFY(row >= 0);
+    QCOMPARE(QString::fromStdString(own.browser->rows()[row].artworkPath),
+             QStringLiteral("/music/t2.mp3"));
+}
+
+void TestLibraryCatalogue::artworkGenresLeafNeverBorrowsAcrossAlbums() {
+    // The Genres leaf mixes albums: borrowing a sibling's picture there
+    // would show the wrong album's cover.
+    BrowserFix fix = artistsFixture();
+    fix.artwork.scripted_["/music/t1.mp3"] = picture();
+    fix.rebuild();
+
+    fix.browser->setMode(BrowserMode::Genres);
+    fix.browser->openEntry(indexOfRow(fix, "Pop"));  // t1, t2, t3
+    int row = indexOfRow(fix, "Alpha");
+    QVERIFY(row >= 0);
+    QCOMPARE(QString::fromStdString(fix.browser->rows()[row].artworkPath),
+             QStringLiteral("/music/t1.mp3"));
+    row = indexOfRow(fix, "Beta");  // no own picture; no borrow here
+    QVERIFY(row >= 0);
+    QVERIFY(fix.browser->rows()[row].artworkPath.empty());
+
+    // Albums mode is the single-album contrast (Sky: t1, t2).
+    fix.browser->setMode(BrowserMode::Albums);
+    fix.browser->openEntry(indexOfRow(fix, "Sky"));
+    row = indexOfRow(fix, "Beta");
+    QVERIFY(row >= 0);
+    QCOMPARE(QString::fromStdString(fix.browser->rows()[row].artworkPath),
+             QStringLiteral("/music/t1.mp3"));
+}
+
+void TestLibraryCatalogue::artworkPlaylistRowsHaveNoArtwork() {
+    BrowserFix fix({}, {}, {"/music/lists/x.m3u", "/music/lists/y.m3u"});
+    fix.artwork.scripted_["/music/lists/x.m3u"] = picture();
+    fix.rebuild();
+    fix.browser->setMode(BrowserMode::Playlists);
+    QCOMPARE(int(fix.browser->rows().size()), 2);
+    for (const LibraryBrowserViewModel::Row& row : fix.browser->rows()) {
+        QVERIFY(row.artworkPath.empty());
+    }
+    QCOMPARE(fix.artwork.callCount_, 0);  // playlists never consult artwork
+}
+
+void TestLibraryCatalogue::artworkPresenceIsCachedWithinARebuild() {
+    // One repopulate may look at the same path from several rows (artist
+    // root → album level → track level). The presence answer is cached
+    // per rebuild; only a rebuild (rescan) invalidates it.
+    BrowserFix fix = artistsFixture();
+    fix.artwork.scripted_["/music/t2.mp3"] = picture();
+    fix.rebuild();  // root: t3 miss, t1 miss, t2 hit; t4 miss
+
+    fix.browser->openEntry(indexOfRow(fix, "Aurora"));  // Land t3, Sky t1/t2
+    fix.browser->openEntry(indexOfRow(fix, "Sky"));     // tracks t1, t2
+
+    QCOMPARE(fix.artwork.readsFor("/music/t1.mp3"), 1);
+    QCOMPARE(fix.artwork.readsFor("/music/t2.mp3"), 1);
+    QCOMPARE(fix.artwork.readsFor("/music/t3.mp3"), 1);
+    QCOMPARE(fix.artwork.readsFor("/music/t4.mp3"), 1);
+
+    // rebuild() rescan may have changed the files → cache cleared.
+    fix.browser->rebuild();
+    QCOMPARE(fix.artwork.readsFor("/music/t2.mp3"), 2);
 }
 
 QTEST_MAIN(TestLibraryCatalogue)

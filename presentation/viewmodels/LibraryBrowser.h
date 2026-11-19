@@ -44,6 +44,7 @@
 #include <string>
 #include <vector>
 
+#include "../core/ports/IArtworkReader.h"
 #include "LibraryCatalogue.h"
 #include "LibraryViewModel.h"  // RowCommand catalogue reuse (SH-809)
 
@@ -60,11 +61,22 @@ public:
         Kind kind = Kind::Category;
         std::string label;  // category label / display title / playlist path
         std::string path;   // Track + Playlist rows; "" for Category rows
+        /// SH-1009 (UX-20): a representative track path that carries
+        /// embedded artwork for this row, or "" when there is none.
+        /// Category rows use the first track with art in group order
+        /// (artists: albums, then tracks); track rows use their own art,
+        /// falling back to a sibling only in a single-album level;
+        /// playlist rows never carry artwork.
+        std::string artworkPath;
     };
 
     /// @param catalogue the SH-1003 grouping layer (rebuilt by the shared
     ///     pipeline; this class never scans itself).
-    explicit LibraryBrowserViewModel(LibraryCatalogueViewModel& catalogue);
+    /// @param artwork the SH-1009 artwork reader used for row tiles
+    ///     (optional: null disables artwork resolution, the pre-SH-1009
+    ///     behaviour).
+    explicit LibraryBrowserViewModel(LibraryCatalogueViewModel& catalogue,
+                                     IArtworkReader* artwork = nullptr);
 
     void setMode(BrowserMode mode);  // B1
     BrowserMode mode() const;
@@ -90,6 +102,10 @@ public:
 
 private:
     LibraryCatalogueViewModel& catalogue_;
+    IArtworkReader* artwork_ = nullptr;
+    /// SH-1009: per-rebuild presence cache (path → has art) — a row
+    /// repopulate and a drill-down must not re-read the same picture.
+    std::map<std::string, bool> artworkPresence_;
 
     // B2: the drill-down chain (indices into the catalogue groups). The
     // album selection starts "unset" (a size that no catalogue has) — a
@@ -107,8 +123,17 @@ private:
     void repopulate();
 
     /// B3 leaf rows: one Track row per path (label = the catalogue's
-    /// display title, safe fallback the path itself).
-    void appendTrackRows(const std::vector<std::string>& paths);
+    /// display title, safe fallback the path itself). SH-1009: `siblings`
+    /// is the whole level's path list; when `singleAlbum` is true a track
+    /// without its own picture may borrow a sibling's (all paths then
+    /// belong to one album); in the mixed Genres leaf it must not.
+    void appendTrackRows(const std::vector<std::string>& paths,
+                         bool singleAlbum);
+
+    /// SH-1009: first candidate path whose reader yields a picture
+    /// (presence cached per rebuild), or "" when none does / no reader.
+    std::string firstArtworkPath(const std::vector<std::string>& candidates);
+    bool hasArtwork(const std::string& path);
 
     /// B1/B2/B7: drill-down state back to the mode root.
     void resetNavigation();

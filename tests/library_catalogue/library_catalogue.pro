@@ -28,5 +28,6 @@ PRE_TARGETDEPS += $$OUT_PWD/../../core/libshanty-core.a
 
 SOURCES += tst_library_catalogue.cpp
 HEADERS += FakeTagReader.h \
+    FakeArtworkReader.h \
     FakePersistingLibraryStore.h \
     RecordingScanner.h
