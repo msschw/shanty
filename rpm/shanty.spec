@@ -35,6 +35,9 @@ BuildRequires:  pkgconfig(gstreamer-1.0)
 # headers + -ltag via pkg-config.
 Requires:   taglib
 BuildRequires:  pkgconfig(taglib)
+# SH-1008 (UX-19): the per-app page ships into jolla-settings' entries tree
+# (Settings → Apps → Shanty) and runs in that app's QML engine.
+Requires:   jolla-settings
 BuildRequires:  desktop-file-utils
 
 %description
@@ -76,6 +79,10 @@ desktop-file-install --delete-original         --dir %{buildroot}%{_datadir}/app
 %{_datadir}/%{name}
 %{_datadir}/applications/%{name}.desktop
 %{_datadir}/icons/hicolor/*/apps/%{name}.png
+# SH-1008 (UX-19): the OS Settings app's per-app entry + the QML plugin its
+# page loads (module Shanty.Settings).
+%{_datadir}/jolla-settings/entries/%{name}.json
+%{_libdir}/qt5/qml/Shanty/Settings
 
 # SH-702: ship the GPL licence text (package documentation).
 %doc LICENSE

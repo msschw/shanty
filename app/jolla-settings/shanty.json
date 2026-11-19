@@ -1,0 +1,11 @@
+{
+    "entries": [
+        {
+            "path": "applications/shanty.desktop",
+            "type": "application",
+            "params": {
+                "source": "/usr/share/shanty/qml/pages/SettingsEntryPage.qml"
+            }
+        }
+    ]
+}

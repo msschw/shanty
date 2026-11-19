@@ -611,11 +611,13 @@ void TestPackaging::settingsEntryBindsTheSystemSettingsPageToTheDesktopFile() {
              "the Settings page's root must be ApplicationSettings");
 
     // app.pro owns the install rule (qmake INSTALLS → the Settings tree).
+    // The destination is the Settings app's own tree; Qt's INSTALL_DATA
+    // resolves to /usr/share/qt5 on this target, so the path is literal.
     const QString appPro = readFileOrThrow(appProPath());
     QVERIFY2(appPro.contains(
-                 QStringLiteral("$$[QT_INSTALL_DATA]/jolla-settings/entries")),
+                 QStringLiteral("/usr/share/jolla-settings/entries")),
              "app/app.pro must install the entry into "
-             "$$[QT_INSTALL_DATA]/jolla-settings/entries");
+             "/usr/share/jolla-settings/entries");
     QVERIFY2(appPro.contains(QStringLiteral("jolla-settings/shanty.json")),
              "app/app.pro must install app/jolla-settings/shanty.json");
 }

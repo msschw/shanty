@@ -95,10 +95,12 @@ DISTFILES += qml/shanty.qml \
     qml/cover/CoverPage.qml \
     qml/pages/LibraryPage.qml \
     qml/pages/SettingsPage.qml \
+    qml/pages/SettingsEntryPage.qml \
     qml/pages/PlayerPage.qml \
     qml/pages/PlaylistPage.qml \
     qml/pages/FilePickerPage.qml \
     qml/pages/PromptPage.qml \
+    jolla-settings/shanty.json \
     ../rpm/shanty.changes.in \
     ../rpm/shanty.changes.run.in \
     ../rpm/shanty.spec \
@@ -106,6 +108,18 @@ DISTFILES += qml/shanty.qml \
     shanty.desktop
 
 SAILFISHAPP_ICONS = 86x86 108x108 128x128 172x172
+
+# SH-1008 (UX-19): the OS Settings app's per-app entry. jolla-settings reads
+# /usr/share/jolla-settings/entries/*.json; this entry binds
+# "applications/shanty.desktop" (the FULL desktop-file name — the binding
+# rule verified in Phase 0) to qml/pages/SettingsEntryPage.qml, which runs
+# in the Settings engine with the app's identity. The page's C++ commands
+# come from the Shanty.Settings QML plugin (app/settings-plugin/).
+# The destination is the Settings app's own tree, not Qt's INSTALL_DATA
+# ($$[QT_INSTALL_DATA] is /usr/share/qt5 on this target), so spell it out.
+jollaSettingsEntries.files = jolla-settings/shanty.json
+jollaSettingsEntries.path = /usr/share/jolla-settings/entries
+INSTALLS += jollaSettingsEntries
 
 # Template layout note: qml/, shanty.desktop and icons/<size>/ live inside
 # app/ (moved from the repo root during the SDK bring-up), matching

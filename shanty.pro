@@ -18,6 +18,12 @@ onHost {
 } else {
     SUBDIRS += app
     app.depends = presentation
+    # SH-1008 (UX-19): the Shanty.Settings QML plugin loaded by the OS
+    # Settings app (Settings → Apps → Shanty). Device-only: it needs the
+    # QtQml plugin surface of the target and links the same static libs.
+    settingsplugin.subdir = app/settings-plugin
+    settingsplugin.depends = presentation
+    SUBDIRS += settingsplugin
 }
 
 DISTFILES += PROJECT.md ISSUES.md

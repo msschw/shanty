@@ -3,6 +3,14 @@
 // profile list with select/rename/delete, AutoEq import (name prompt +
 // file picker) and apply/reset. Rejections surface through the shell's
 // toast mapping of the view model's reason catalogue.
+//
+// SH-1008 (UX-19, owner direction 2026-11-17): library configuration
+// (managed folders / whitelist / blacklist) moved OUT of this page into
+// the OS Settings app's per-app page (Settings → Apps → Shanty, see
+// qml/pages/SettingsEntryPage.qml + app/settings-plugin/). This page keeps
+// the equalizer only; the library side re-reads the shared config on
+// activation, so edits made in the Settings app apply on the next visit.
+// Copyright 2026 Shanty contributors. SPDX-License-Identifier: GPL-3.0-or-later
 import QtQuick 2.0
 import Sailfish.Silica 1.0
 
@@ -79,35 +87,9 @@ Page {
         })
     }
 
-    // ---- SH-1004 (UX-15): library management lives ONLY here (owner
-    // direction 2026-11-14). The sections below moved verbatim from
-    // LibraryPage; the commands go through the settings facade, whose view
-    // model shares the SAME library-config store the library side uses —
-    // the Library page re-reads the config from the store on its next
-    // activation (cross-visibility read path) and rescans.
-    function pushFolderPicker() {
-        var picker = pageStack.push(Qt.resolvedUrl("FilePickerPage.qml"), {
-            mode: "folder",
-            startDir: settings.homeDir(),
-            listProvider: settings.listDirectory
-        })
-        picker.accepted.connect(function(path) {
-            settings.addFolder(path)
-        })
-    }
-
-    function pushFilterPrompt(section) {
-        var prompt = pageStack.push(Qt.resolvedUrl("PromptPage.qml"), {
-            title: section === "whitelist" ? qsTr("Add whitelist entry")
-                                           : qsTr("Add blacklist entry"),
-            inputLabel: qsTr("Path"),
-            placeholderText: qsTr("Path")
-        })
-        prompt.accepted.connect(function() {
-            if (section === "whitelist") settings.addWhitelistEntry(prompt.text.trim())
-            else settings.addBlacklistEntry(prompt.text.trim())
-        })
-    }
+    // ---- SH-1008 (UX-19): library management moved to the OS Settings app
+    // (Settings → Apps → Shanty). This page no longer carries folder or
+    // filter commands — see qml/pages/SettingsEntryPage.qml.
 
     SilicaFlickable {
         anchors.fill: parent
@@ -121,129 +103,6 @@ Page {
 
             PageHeader {
                 title: qsTr("Settings")
-            }
-
-            // ---- library (SH-1004, UX-15: management moved from LibraryPage;
-            //      same interaction idioms — folder picker for folders, prompt
-            //      for filter entries, remove buttons per row) ---------------
-            SectionHeader {
-                text: qsTr("Managed folders")
-            }
-
-            Repeater {
-                model: settings.libraryFolders
-
-                delegate: ListItem {
-                    width: column.width
-                    contentHeight: Theme.itemSizeSmall
-
-                    Label {
-                        x: Theme.horizontalPageMargin
-                        width: parent.width - 2 * Theme.horizontalPageMargin
-                               - Theme.iconSizeMedium
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: modelData
-                        truncationMode: TruncationMode.Fade
-                    }
-                    IconButton {
-                        anchors.right: parent.right
-                        anchors.rightMargin: Theme.horizontalPageMargin
-                        anchors.verticalCenter: parent.verticalCenter
-                        icon.source: "image://theme/icon-m-remove"
-                        onClicked: settings.removeFolder(modelData)
-                    }
-                }
-            }
-
-            Button {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                text: qsTr("Add folder")
-                onClicked: pushFolderPicker()
-            }
-
-            // ---- whitelist --------------------------------------------------
-            SectionHeader {
-                text: qsTr("Whitelist")
-            }
-
-            Label {
-                x: Theme.horizontalPageMargin
-                visible: settings.libraryWhitelist.length === 0
-                text: qsTr("Empty whitelist: every supported file under a managed folder is included")
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                wrapMode: Text.Wrap
-                font.pixelSize: Theme.fontSizeExtraSmall
-                color: Theme.secondaryColor
-            }
-
-            Repeater {
-                model: settings.libraryWhitelist
-
-                delegate: ListItem {
-                    width: column.width
-                    contentHeight: Theme.itemSizeSmall
-
-                    Label {
-                        x: Theme.horizontalPageMargin
-                        width: parent.width - 2 * Theme.horizontalPageMargin
-                               - Theme.iconSizeMedium
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: modelData
-                        truncationMode: TruncationMode.Fade
-                    }
-                    IconButton {
-                        anchors.right: parent.right
-                        anchors.rightMargin: Theme.horizontalPageMargin
-                        anchors.verticalCenter: parent.verticalCenter
-                        icon.source: "image://theme/icon-m-remove"
-                        onClicked: settings.removeWhitelistEntry(modelData)
-                    }
-                }
-            }
-
-            Button {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                text: qsTr("Add whitelist entry")
-                onClicked: pushFilterPrompt("whitelist")
-            }
-
-            // ---- blacklist --------------------------------------------------
-            SectionHeader {
-                text: qsTr("Blacklist")
-            }
-
-            Repeater {
-                model: settings.libraryBlacklist
-
-                delegate: ListItem {
-                    width: column.width
-                    contentHeight: Theme.itemSizeSmall
-
-                    Label {
-                        x: Theme.horizontalPageMargin
-                        width: parent.width - 2 * Theme.horizontalPageMargin
-                               - Theme.iconSizeMedium
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: modelData
-                        truncationMode: TruncationMode.Fade
-                    }
-                    IconButton {
-                        anchors.right: parent.right
-                        anchors.rightMargin: Theme.horizontalPageMargin
-                        anchors.verticalCenter: parent.verticalCenter
-                        icon.source: "image://theme/icon-m-remove"
-                        onClicked: settings.removeBlacklistEntry(modelData)
-                    }
-                }
-            }
-
-            Button {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                text: qsTr("Add blacklist entry")
-                onClicked: pushFilterPrompt("blacklist")
             }
 
             // ---- equalizer ------------------------------------------------------

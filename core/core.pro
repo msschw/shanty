@@ -8,6 +8,11 @@ CONFIG -= qt
 CONFIG += c++14 strict
 QMAKE_CXXFLAGS += -Wall -Wextra
 
+# SH-1008 (UX-19): the Shanty.Settings QML plugin links this archive into a
+# shared object loaded by the jolla-settings engine; i486 requires
+# position-independent code there (harmless for the app/tests executables).
+QMAKE_CXXFLAGS += -fPIC
+
 TARGET = shanty-core
 
 # Headers use core-root-relative quoted includes (e.g.

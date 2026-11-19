@@ -7,6 +7,7 @@ build-*/
 # shares the project dir); ignore the generated build artefacts.
 *.o
 *.a
+*.so
 *.qm
 /app/shanty
 Makefile*

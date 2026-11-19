@@ -10,6 +10,10 @@ CONFIG -= qt
 CONFIG += c++14 strict
 QMAKE_CXXFLAGS += -Wall -Wextra
 
+# SH-1008 (UX-19): linked into the Shanty.Settings QML plugin's shared
+# object as well as the app binary — see core/core.pro.
+QMAKE_CXXFLAGS += -fPIC
+
 TARGET = shanty-viewmodels
 
 # Include roots: repo root ("presentation/..." includes) and core root

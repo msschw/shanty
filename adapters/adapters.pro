@@ -14,6 +14,10 @@ CONFIG += qt
 CONFIG += c++14 strict
 QMAKE_CXXFLAGS += -Wall -Wextra
 
+# SH-1008 (UX-19): linked into the Shanty.Settings QML plugin's shared
+# object as well as the app binary — see core/core.pro.
+QMAKE_CXXFLAGS += -fPIC
+
 # SH-204 Phase B: FileIndexStore persists through QtCore (QFile/QSaveFile/
 # QStandardPaths). Same order as above — overriding the stub-level "-qt".
 CONFIG += qt
