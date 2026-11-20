@@ -45,6 +45,9 @@ QMAKE_CXXFLAGS += -Wall -Wextra
 # (build-*/) and skipped by the license suite's artifact rule. In a private
 # out-of-tree build the path stays inside the private tree.
 MOC_DIR = $$OUT_PWD/../build-app-generated
+# qmake does not create MOC_DIR before invoking moc here; a clean tree
+# (the documented pre-RPM clean removes it) must still build.
+!exists($$MOC_DIR): system(mkdir -p $$shell_quote($$MOC_DIR))
 
 # Repo root include paths: the repo root (core/, adapters/, presentation/
 # header layout) plus the core root (core headers use core-relative includes
@@ -57,6 +60,7 @@ HEADERS += \
     controllers/LibraryFacade.h \
     controllers/LibraryCatalogueFacade.h \
     controllers/LibraryBrowserFacade.h \
+    controllers/ArtworkImageProvider.h \
     controllers/PlaylistFacade.h \
     controllers/PlayerFacade.h \
     controllers/SettingsFacade.h \
@@ -67,6 +71,7 @@ SOURCES += shanty.cpp \
     controllers/LibraryFacade.cpp \
     controllers/LibraryCatalogueFacade.cpp \
     controllers/LibraryBrowserFacade.cpp \
+    controllers/ArtworkImageProvider.cpp \
     controllers/PlaylistFacade.cpp \
     controllers/PlayerFacade.cpp \
     controllers/SettingsFacade.cpp

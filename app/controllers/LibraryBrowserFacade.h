@@ -29,7 +29,9 @@ class LibraryBrowserFacade : public QObject {
     /// The current level's rows as QVariantMaps:
     ///   { kind:  "category" | "track" | "playlist",
     ///     label: QString (category label / display title / playlist path),
-    ///     path:  QString (track + playlist rows; "" for category rows) }
+    ///     path:  QString (track + playlist rows; "" for category rows),
+    ///     artwork: QString (SH-1009: base64url token of the representative
+    ///              artwork path; "" when the row has no embedded picture) }
     /// Empty until the first rebuild() (the snapshot idiom). Re-queried by
     /// QML on rowsChanged — no per-row notification exists.
     Q_PROPERTY(QVariantList rows READ rows NOTIFY rowsChanged)
@@ -86,6 +88,10 @@ private:
     /// documented rejection, never a silent no-op).
     static bool modeFromString(const QString& mode, BrowserMode* out);
     static QVariantMap rowToMap(const LibraryBrowserViewModel::Row& row);
+    /// SH-1009: URL-safe, reversible token for the row's artwork path
+    /// (base64url; only [A-Za-z0-9_=-] so the image URL never needs
+    /// percent-escaping). Empty in → empty out.
+    static QString artworkToken(const std::string& path);
 
     LibraryBrowserViewModel& viewModel_;
 };

@@ -19,7 +19,10 @@ INCLUDEPATH += $$PWD
 
 LIBS += -L$$OUT_PWD/../../adapters -L$$OUT_PWD/../../core -lshanty-adapters -lshanty-core
 # SH-101: track the static libs so suite binaries always relink.
+# (SH-1009: the adapters archive was missing here — an adapter-only change
+# like TagLibArtworkReader stayed invisible to an already-built binary.)
 PRE_TARGETDEPS += $$OUT_PWD/../../core/libshanty-core.a
+PRE_TARGETDEPS += $$OUT_PWD/../../adapters/libshanty-adapters.a
 
 # SH-1001 Phase B: the suite pulls TagLibReader.o out of the adapters
 # archive, so the final link needs taglib (pkg-config libs are appended

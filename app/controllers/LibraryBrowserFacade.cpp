@@ -128,7 +128,16 @@ QVariantMap LibraryBrowserFacade::rowToMap(
     }
     map.insert(QStringLiteral("label"), QString::fromStdString(row.label));
     map.insert(QStringLiteral("path"), QString::fromStdString(row.path));
+    map.insert(QStringLiteral("artwork"), artworkToken(row.artworkPath));
     return map;
+}
+
+QString LibraryBrowserFacade::artworkToken(const std::string& path) {
+    if (path.empty()) {
+        return QString();
+    }
+    const QByteArray raw = QByteArray::fromStdString(path);
+    return QString::fromLatin1(raw.toBase64(QByteArray::Base64UrlEncoding));
 }
 
 }  // namespace shanty

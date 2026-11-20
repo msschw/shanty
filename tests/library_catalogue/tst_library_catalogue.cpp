@@ -658,12 +658,16 @@ void TestLibraryCatalogue::artworkCategoryRowsUseFirstTrackWithPicture() {
     QVERIFY(fix.browser->rows()[row].artworkPath.empty());
 
     // A picture on the album's SECOND track: the album row takes it (the
-    // first track has none), independently of track order.
-    fix.artwork.scripted_["/music/t2.mp3"] = picture();
-    fix.browser->setMode(BrowserMode::Albums);
-    row = indexOfRow(fix, "Sky");
+    // first track has none), independently of track order. Fresh fixture:
+    // the presence cache is per session, so scripting a file after a
+    // cached miss is not a meaningful state.
+    BrowserFix albums = artistsFixture();
+    albums.artwork.scripted_["/music/t2.mp3"] = picture();
+    albums.rebuild();
+    albums.browser->setMode(BrowserMode::Albums);
+    row = indexOfRow(albums, "Sky");
     QVERIFY(row >= 0);
-    QCOMPARE(QString::fromStdString(fix.browser->rows()[row].artworkPath),
+    QCOMPARE(QString::fromStdString(albums.browser->rows()[row].artworkPath),
              QStringLiteral("/music/t2.mp3"));
 }
 

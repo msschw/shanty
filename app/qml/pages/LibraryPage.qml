@@ -30,6 +30,13 @@
 // Activation re-scans through the shared pipeline (browser.rebuild — one
 // store.load + both scanner queries + one tag read per track), preserving
 // SH-1004's cross-visibility with the Settings-side config edits.
+//
+// SH-1009 (UX-20, owner direction 2026-11-19): each row shows a small
+// square artwork preview tile before its label. The browser supplies an
+// `artwork` token (base64url of the representative track path) when the
+// row has an embedded picture; the shell's QML image provider decodes it.
+// Missing artwork and playlist rows fall back to a kind glyph
+// (icon-m-media-artists / -albums / -songs / -playlists).
 // Copyright 2026 Shanty contributors. SPDX-License-Identifier: GPL-3.0-or-later
 import QtQuick 2.0
 import Sailfish.Silica 1.0
@@ -156,8 +163,28 @@ Page {
                 model: browser.rows
 
                 delegate: ListItem {
+                    id: rowItem
+
                     width: column.width
                     contentHeight: Theme.itemSizeSmall
+
+                    // SH-1009 (UX-20): the kind glyph shown when a row has
+                    // no embedded picture (and as the load-error fallback).
+                    function kindIcon() {
+                        if (modelData.kind === "playlist") {
+                            return "image://theme/icon-m-media-playlists"
+                        }
+                        if (modelData.kind === "track") {
+                            return "image://theme/icon-m-media-songs"
+                        }
+                        if (browser.mode === "artists") {
+                            return "image://theme/icon-m-media-artists"
+                        }
+                        if (browser.mode === "albums") {
+                            return "image://theme/icon-m-media-albums"
+                        }
+                        return "image://theme/icon-m-media-songs"
+                    }
 
                     onClicked: {
                         if (modelData.kind === "category") {
@@ -173,9 +200,42 @@ Page {
                         }
                     }
 
-                    Label {
+                    // SH-1009 (UX-20): the artwork preview tile. The token
+                    // in modelData.artwork is URL-safe (base64url), so the
+                    // image URL needs no escaping. A provider miss (corrupt
+                    // picture) degrades to the kind glyph.
+                    Image {
+                        id: artworkTile
+
                         x: Theme.horizontalPageMargin
-                        width: parent.width - 2 * Theme.horizontalPageMargin
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Theme.iconSizeMedium
+                        height: Theme.iconSizeMedium
+                        asynchronous: true
+                        cache: true
+                        sourceSize.width: Theme.iconSizeMedium
+                        sourceSize.height: Theme.iconSizeMedium
+                        fillMode: modelData.artwork
+                                      ? Image.PreserveAspectCrop
+                                      : Image.PreserveAspectFit
+                        opacity: modelData.artwork ? 1.0 : 0.55
+                        source: modelData.artwork
+                                    ? "image://shantyart/" + modelData.artwork
+                                    : rowItem.kindIcon()
+
+                        onStatusChanged: {
+                            if (status === Image.Error && modelData.artwork) {
+                                source = rowItem.kindIcon()
+                                opacity = 0.55
+                                fillMode = Image.PreserveAspectFit
+                            }
+                        }
+                    }
+
+                    Label {
+                        x: artworkTile.x + artworkTile.width
+                           + Theme.paddingMedium
+                        width: parent.width - x - Theme.horizontalPageMargin
                         anchors.verticalCenter: parent.verticalCenter
                         text: modelData.label
                         truncationMode: TruncationMode.Fade

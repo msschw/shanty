@@ -21,6 +21,9 @@ TARGET = shantysettings
 # Generated moc must not pollute the source tree: the license lint scans
 # every *.cpp outside root-level build-* trees (same rule as app/app.pro).
 MOC_DIR = $$OUT_PWD/../../build-settings-plugin-generated
+# qmake does not create MOC_DIR before invoking moc here; keep a cleaned
+# tree buildable (same rule as app.pro).
+!exists($$MOC_DIR): system(mkdir -p $$shell_quote($$MOC_DIR))
 
 INCLUDEPATH += $$PWD/..
 INCLUDEPATH += $$PWD/../..

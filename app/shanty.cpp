@@ -41,6 +41,7 @@
 
 #include <QGuiApplication>
 #include <QQmlContext>
+#include <QQmlEngine>
 #include <QQuickView>
 #include <QScopedPointer>
 
@@ -53,11 +54,13 @@
 #include "adapters/settings/QSettingsSettingsStore.h"
 #include "adapters/store/FileIndexStore.h"
 #include "adapters/store/QueueStateStore.h"  // SH-805 (UX-4) session store
+#include "adapters/taglib/TagLibArtworkReader.h"  // SH-1009 artwork adapter
 #include "adapters/taglib/TagLibReader.h"  // SH-1001 tag reader adapter
 #include "core/playback/PlaybackController.h"
 #include "core/playback/PlaybackQueue.h"
 #include "core/services/LibraryService.h"
 #include "core/services/PlaylistService.h"
+#include "controllers/ArtworkImageProvider.h"  // SH-1009 (UX-20)
 #include "controllers/LibraryBrowserFacade.h"  // SH-1005 (UX-16)
 #include "controllers/LibraryCatalogueFacade.h"
 #include "controllers/LibraryFacade.h"
@@ -78,6 +81,10 @@ int main(int argc, char *argv[])
 
     QScopedPointer<QGuiApplication> application(
         SailfishApp::application(argc, argv));
+    // SH-1009 (UX-20): the artwork reader outlives the QML engine (the
+    // image provider registered below holds a reference to it; the engine
+    // destroys providers with the view).
+    TagLibArtworkReader artworkReader;
     QScopedPointer<QQuickView> view(SailfishApp::createView());
 
     // ---- adapters + services -------------------------------------------------
@@ -116,7 +123,9 @@ int main(int argc, char *argv[])
                                                  tagReader);
     // SH-1005 (UX-16): the browser state layer over the catalogue (mode
     // selector + drill-down); shares the catalogue's rebuild pipeline.
-    LibraryBrowserViewModel browserViewModel(catalogueViewModel);
+    // SH-1009 (UX-20): the same artwork reader feeds the row tiles.
+    LibraryBrowserViewModel browserViewModel(catalogueViewModel,
+                                             &artworkReader);
     PlaylistViewModel playlistViewModel(playlistService);
     PlayerViewModel playerViewModel(controller, queue);
     // SettingsViewModel is owned by SettingsFacade (SH-D605-B1: the facade
@@ -225,6 +234,12 @@ int main(int argc, char *argv[])
     rootContext->setContextProperty(QStringLiteral("playlist"), playlist);
     rootContext->setContextProperty(QStringLiteral("player"), player);
     rootContext->setContextProperty(QStringLiteral("settings"), settings);
+
+    // SH-1009 (UX-20): image://shantyart/<base64url(path)> for the
+    // Library browser's preview tiles. Registration happens before the
+    // QML source is loaded (the engine resolves providers at load time).
+    view->engine()->addImageProvider(QStringLiteral("shantyart"),
+                                     new ArtworkImageProvider(artworkReader));
 
     view->setSource(SailfishApp::pathToMainQml());
     view->show();

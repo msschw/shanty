@@ -90,4 +90,11 @@ contractual guarantee ahead of that.
 ## Scope guard
 
 - Read-only: no tag writing (UX.md §5 scope decision).
-- No artwork (revisit only by charter amendment).
+- No artwork *writing* or lookup. Embedded artwork is read-only
+  presentation data for the library tiles since SH-1009 (UX-20): a
+  separate `IArtworkReader` port + `TagLibArtworkReader` extract the
+  embedded picture (`APIC` / FLAC `PICTURE` / Ogg
+  `METADATA_BLOCK_PICTURE`); no online lookup, no tag mutation, no
+  on-disk cache (the image provider's decoded-image cache is in memory
+  only). The tag-metadata path (`ITagReader`) deliberately does not
+  carry picture bytes.

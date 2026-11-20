@@ -250,15 +250,26 @@ void LibraryBrowserViewModel::appendTrackRows(
 
 std::string LibraryBrowserViewModel::firstArtworkPath(
     const std::vector<std::string>& candidates) {
-    // Phase A stub: no artwork resolution until Phase B.
-    (void)candidates;
+    for (const std::string& path : candidates) {
+        if (hasArtwork(path)) {
+            return path;
+        }
+    }
     return std::string();
 }
 
 bool LibraryBrowserViewModel::hasArtwork(const std::string& path) {
-    // Phase A stub: no artwork resolution until Phase B.
-    (void)path;
-    return false;
+    if (artwork_ == nullptr || path.empty()) {
+        return false;
+    }
+    const std::map<std::string, bool>::const_iterator cached =
+        artworkPresence_.find(path);
+    if (cached != artworkPresence_.end()) {
+        return cached->second;
+    }
+    const bool present = !artwork_->read(path).isEmpty();
+    artworkPresence_[path] = present;
+    return present;
 }
 
 }  // namespace shanty
